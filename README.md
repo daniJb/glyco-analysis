@@ -18,7 +18,7 @@ For better runtime performance, you need to set OMP_NUM_THREADS to 18.
 $ export OMP_NUM_THREADS=18
 ```
 
-This was tested on Linux SL6, CentOS7 and MacOSX (Yusamite/Mountain Lion).
+This was tested on Linux SL6, CentOS7 and MacOSX (Yosemite/Mountain Lion).
 
 #### Addon features:
 - hide/unhide group of objects based on selection.
