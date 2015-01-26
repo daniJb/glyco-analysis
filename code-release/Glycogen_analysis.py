@@ -392,9 +392,9 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 						bpy.types.Scene.neur_obj_attrib_np =np.concatenate((bpy.types.Scene.neur_obj_attrib_np, temp_attrib_np),axis=0)
 						bpy.types.Scene.neur_obj_verts_np = np.concatenate((bpy.types.Scene.neur_obj_verts_np, temp_verts_np),axis=0)
 
-			if bpy.types.Scene.neur_obj_attrib_np.size:
-				bpy.types.Scene.data_glyc_distances = get_closest_distance(bpy.types.Scene.glycogen_verts_np, bpy.types.Scene.neur_obj_verts_np)
-				bpy.types.Scene.data_glyc_distances_occur = self.occurences()
+		if bpy.types.Scene.neur_obj_attrib_np.size:
+			bpy.types.Scene.data_glyc_distances = get_closest_distance(bpy.types.Scene.glycogen_verts_np, bpy.types.Scene.neur_obj_verts_np)
+			bpy.types.Scene.data_glyc_distances_occur = self.occurences()
 
 		# print
 		#for i in range(0, len(bpy.types.Scene.data_glyc_distances)):
@@ -483,22 +483,26 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		'''now we can create dictionary from obj&gly names:'''
 		for i in range(0,len(gly_names)):
 			#the below method in populating dictionaries will perform (itemfreq) on objects names so that it will not duplicate keys (robust?)
-			dict_temp[gly_names[i]] = objects_names[i] 
+			dict_temp[gly_names[i]] = objects_names[i]
+
 		#sort the dictionary:b = OrderedDict(sorted(a.items()))
 		bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = OrderedDict(sorted(dict_temp.items(), key=lambda val: val[1])) #checked
-		
+
+		#now we need to group glycogens in a list per neuro
+		#===============================================
+		#Populating bpy.types.Scene.neuro_glyList_dict
 		templist1 = []
-		current = list(bpy.types.Scene.neuro_gly_glyFreq_dic_sorted.values())[0]
+		current_neuro = list(bpy.types.Scene.neuro_gly_glyFreq_dic_sorted.values())[0]
 		for glyname, objname in bpy.types.Scene.neuro_gly_glyFreq_dic_sorted.items(): # .item refers to a pair(key,value), switching keys to values and values to keys
-			if objname == str(current):
+			if objname == str(current_neuro):
 				templist1.append(glyname)
 			else:
-				bpy.types.Scene.neuro_glyList_dict[current]=templist1
-				current = objname
+				bpy.types.Scene.neuro_glyList_dict[current_neuro]=templist1
+				current_neuro = objname
 				templist1 = []
 				templist1.append(glyname)
-		
-		#print(bpy.types.Scene.neuro_glyList_dict)
+		bpy.types.Scene.neuro_glyList_dict[current_neuro]=templist1 #store last list, as loop finishes before it gets to store it in'else'
+		#===============================================
 
 		#now we count instances of glycogens per neuro object closests to it
 		templist=[]
