@@ -114,21 +114,19 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 		#bpy.types.Scene.prop_bool_glycogen = bpy.props.BoolProperty(name="Glycogen", default=False)
 		#bpy.types.Scene.prop_bool_clusters = bpy.props.BoolProperty(name="Clusters", default=False)
 
-		bpy.types.Scene.prop_min_samples = None
-		bpy.types.Scene.prop_eps1 = None
-		bpy.types.Scene.prop_eps2 = None
-		bpy.types.Scene.prop_interval = None
+		#bpy.types.Scene.prop_min_samples = None
+		#bpy.types.Scene.prop_eps1 = None
+		#bpy.types.Scene.prop_eps2 = None
+		#bpy.types.Scene.prop_interval = None
 		#step2
-		bpy.types.Scene.prop_min_samples_s2 = None #in sync with prop_min_samples step 1
-		bpy.types.Scene.prop_optimum_eps = None
-		bpy.types.Scene.prop_nclusters = None
-		bpy.types.Scene.prop_silh = None
+		#bpy.types.Scene.prop_min_samples_s2 = None #in sync with prop_min_samples step 1
+		#bpy.types.Scene.prop_optimum_eps = None
+		#bpy.types.Scene.prop_nclusters = None
+		#bpy.types.Scene.prop_silh = None
 		#measurements: The Activate/Reload button if its pressed for Reload then it shouldnt get rid of certain existing values:
-		if bpy.types.Scene.data_glyc_clusters is None:
-			bpy.types.Scene.flag_clusters_measure = None
-			bpy.types.Scene.flag_clusters_measured = None
-
-
+		#if not bpy.types.Scene.data_glyc_clusters:
+		#	bpy.types.Scene.flag_clusters_measure = None
+		#	bpy.types.Scene.flag_clusters_measured = None
 
 	def func_load_objectsNames(self):
 		lst = []
@@ -153,42 +151,61 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 			update=update_prop_bool_glyc)
 			bpy.types.Scene.prop_bool_clusters = bpy.props.BoolProperty(name="Clusters", description=" ",
 			update=update_prop_bool_clust)
-			bpy.types.Scene.prop_min_samples = bpy.props.IntProperty(name='Minimum Samples', default=20)
-			bpy.types.Scene.prop_eps1 = bpy.props.FloatProperty(name='from', default=0.2)
-			bpy.types.Scene.prop_eps2 = bpy.props.FloatProperty(name='to', default=0.63)
-			bpy.types.Scene.prop_interval = bpy.props.FloatProperty(name='Interval', default=0.01)
+			bpy.types.Scene.prop_min_samples = bpy.props.IntProperty(name='Minimum Samples')
+			bpy.types.Scene.prop_eps1 = bpy.props.FloatProperty(name='from')#, default=0.2)
+			bpy.types.Scene.prop_eps2 = bpy.props.FloatProperty(name='to')#, default=0.63)
+			bpy.types.Scene.prop_interval = bpy.props.FloatProperty(name='Interval')#, default=0.01)
+			#initialise, default changes the value at time of creation, later it will hold on to the last input value
+			bpy.context.scene.prop_min_samples = 19
+			bpy.context.scene.prop_eps1 = 0.35
+			bpy.context.scene.prop_eps2 = 0.38
+			bpy.context.scene.prop_interval = 0.1
 			#step 2
-			bpy.types.Scene.prop_min_samples_s2 = bpy.props.IntProperty(name='Minimum Samples', default=20)
-			bpy.types.Scene.prop_optimum_eps = bpy.props.FloatProperty(name='Optimum Epsilon', default=00)
-			bpy.types.Scene.prop_nclusters = StringProperty(name='', default="")
-			bpy.types.Scene.prop_silh = StringProperty(name='',default="")#Silhouette Coefficient
-			if bpy.types.Scene.data_glyc_clusters is None:
-				bpy.types.Scene.flag_clusters_measure = False #TEMP FOR TESTING GARFY
-				bpy.types.Scene.flag_clusters_measured = False
+			bpy.types.Scene.prop_min_samples_s2 = bpy.props.IntProperty(name='Minimum Samples')#, default=20)
+			bpy.types.Scene.prop_optimum_eps = bpy.props.FloatProperty(name='Optimum Epsilon')#, default=00)
+			bpy.types.Scene.prop_nclusters = StringProperty(name='')#, default="")
+			bpy.types.Scene.prop_silh = StringProperty(name='')#,default="")#Silhouette Coefficient
+			#initialization:
+			bpy.context.scene.prop_min_samples_s2 = 19
+			bpy.context.scene.prop_optimum_eps = 0.0
+			bpy.context.scene.prop_nclusters=""
+			bpy.context.scene.prop_silh = ""
+			#should initialise all data holders:
+			bpy.types.Scene.data_glyc_clusters = [] #clustering-clusters section
+			bpy.types.Scene.data_clusters_centroids = [] #clusters measures
+			bpy.types.Scene.data_clusters_distances = [] # =
+			bpy.types.Scene.flag_clusters_measure = False  # =
+			bpy.types.Scene.flag_clusters_measured = False # = to activate export data button
+
+			#if not bpy.types.Scene.data_glyc_clusters:# is None: if Reload is pressed while there's still data that hasnt been exproted!?
+			#	bpy.types.Scene.flag_clusters_measure = False 
+			#	bpy.types.Scene.flag_clusters_measured = False
+			
 			#glycogen Measures:
 			empty = [("","","")]
 			bpy.types.Scene.prop_glyc_neighbours = EnumProperty(name="Neibouring Objects",items=empty)
 			bpy.types.Scene.prop_associated_glyco = EnumProperty(name='Associated Granules:',items=empty)
-			bpy.types.Scene.prop_total_granules = StringProperty(name='Total Granules:',default="")
-			bpy.types.Scene.prop_glyc_to_neighb_dist = StringProperty(name='Distance:',default="")
+			bpy.types.Scene.prop_total_granules = StringProperty(name='Total Granules:')#,default="")
+			bpy.types.Scene.prop_glyc_to_neighb_dist = StringProperty(name='Distance:')#,default="")
 			bpy.types.Scene.data_glyc_distances = []
-			if bpy.types.Scene.data_glyc_distances:
-				print("its not none")
+			#if bpy.types.Scene.data_glyc_distances:
+			#	print("its not none")
 
-		else:
-			if bpy.types.Scene.prop_bool_glycogen != None:
-				del bpy.types.Scene.prop_bool_glycogen
-			if bpy.types.Scene.prop_bool_clusters != None:
-				del bpy.types.Scene.prop_bool_clusters
+		#else: #When Reset is pressed and Glycogen has been deleted (Robust code)
+		#should disable entire panel clusters and glycogens sections
+		#	if bpy.types.Scene.prop_bool_glycogen:
+		#		del bpy.types.Scene.prop_bool_glycogen
+		#	if bpy.types.Scene.prop_bool_clusters:
+		#		del bpy.types.Scene.prop_bool_clusters
 			#clustering option:
-			if bpy.types.Scene.prop_min_samples:
-				del bpy.types.prop_Scene.prop_min_samples
-			if bpy.types.Scene.prop_eps1:
-				del bpy.types.Scene.prop_eps1
-			if bpy.types.Scene.prop_eps2:
-				del bpy.types.Scene.prop_eps2
-			if bpy.types.Scene.prop_interval:
-				del bpy.types.Scene.prop_interval
+		#	if bpy.types.Scene.prop_min_samples:
+		#		del bpy.types.prop_Scene.prop_min_samples
+		#	if bpy.types.Scene.prop_eps1:
+		#		del bpy.types.Scene.prop_eps1
+		#	if bpy.types.Scene.prop_eps2:
+		#		del bpy.types.Scene.prop_eps2
+		#	if bpy.types.Scene.prop_interval:
+		#		del bpy.types.Scene.prop_interval
 			#glycogen option:
 		return lst
 	#---------------#
@@ -930,11 +947,11 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		print("ellipsoid no.:",dlabel,"drawn in ", end-start, "no of granules:",len(self.objects_names))
 		
 		#we need a fake mesh (sphere)
-		print(self.layers_array)
+		#print(self.layers_array)
 		bpy.ops.mesh.primitive_uv_sphere_add(size=0.03, location = (0.0,0.0,0.0),layers=self.layers_array)
 		bpy.context.object.name = 'fake' + label
 		#HERE last edit Sept10th,2014
-		print(self.layer_indx)                                                                                                                            
+		#print(self.layer_indx)                                                                                                                            
 		bpy.context.scene.layers[self.layer_indx] = True #11 but 12 in count
 		obj = bpy.context.active_object
 		if obj.name == 'fake'+label and obj.type == 'MESH':
@@ -950,7 +967,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 			bpy.ops.object.mode_set(mode = 'OBJECT')        
 			#using the shrinkWrap modifier,
 			#size 3, to cover the size of any cluster. for the shrink-wrap to work properly as skin
-			print(self.layers_array)
+			#print(self.layers_array)
 			bpy.ops.mesh.primitive_uv_sphere_add(size=3, location=center,layers=self.layers_array) 
 			obj = bpy.context.active_object
 			obj.name = 'ellipsoid'+label
@@ -992,8 +1009,8 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 						ob.select = True
 						bpy.ops.object.parent_set(type='OBJECT')
 
-	def init(self):
-		bpy.types.Scene.data_glyc_clusters = []
+	#def init(self):
+	#	bpy.types.Scene.data_glyc_clusters = []
 		
 class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 	bl_idname = "objects.clusters_nearest_neighbours"
@@ -1004,7 +1021,7 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		clusters are generated.
 	"""	
 	def invoke(self,context,event):
-		self.initialise()
+		#self.initialise()
 		#1-compute clusters centroids:
 		bpy.types.Scene.data_clusters_centroids = self.get_clusters_centroids()
 		#2-compute distances between cluster centroid and rest of neural objects vertices
@@ -1066,10 +1083,10 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		bpy.types.Scene.flag_clusters_measured = True
 
 		return{"FINISHED"}
-	@classmethod
-	def initialise(self):
-		bpy.types.Scene.data_clusters_centroids = []
-		bpy.types.Scene.data_clusters_distances = []
+	#@classmethod
+	#def initialise(self):
+	#	bpy.types.Scene.data_clusters_centroids = []
+	#	bpy.types.Scene.data_clusters_distances = []
 
 	def get_clusters_centroids(self):
 		glyNames = []
@@ -1169,7 +1186,7 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 		return{"RUNNING_MODAL"}
 
 #--------------------------------------------------------------------------------
-#                                   PANEL LAYOUT
+#                                PANEL LAYOUT
 #--------------------------------------------------------------------------------
 class UI_VIEW3D_PT(bpy.types.Panel):
 	bl_idname = "UI_VIEW3D_PT"
@@ -1187,7 +1204,7 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 		obj = context.object
 		row1 = layout.row()
 		row1.alignment = 'LEFT'
-		row1.operator("view3d.activate_addon_button", "Activate/Reload addon")
+		row1.operator("view3d.activate_addon_button", "Activate/Reset addon")
 
 		#hide-unhide objects -general panel box-
 		box1 = layout.box()
@@ -1302,32 +1319,34 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 					row5_glyc.prop(scene,'prop_glyc_to_neighb_dist')
 					row5_glyc.enabled = False
 #--------------------------------------------------------------------------------
-#                                   MAIN EXECUTE
+#                                MAIN EXECUTE
 #---------------------------------------------------------------------------------
 def register():#register takes class name | panel takes bl_idname as string
-	
+	#all variables are created here cause they need to be deleted in unregister, 
+	#as there will be times when enduser doesnt use all addons functionality so,
+	#if variables are only declared there, at time of unregister, variable will 
+	#be referenced without declaration, an error.
 	bpy.utils.register_module(__name__)
 	#public
-	bpy.types.Scene.data_names = None 
-	bpy.types.Scene.prop_obj_names = None #dropdown list
-	bpy.types.Scene.data_obj_coords = None
-	bpy.types.Scene.prop_bool_glycogen = None #toggle checkbox
-	bpy.types.Scene.prop_bool_clusters = None
-
+	bpy.types.Scene.data_names = None  #Checked 1 
+	bpy.types.Scene.prop_obj_names = None #dropdown list #Checked2 
+	bpy.types.Scene.data_obj_coords = None #Checked 3
+	bpy.types.Scene.prop_bool_glycogen = None #toggle checkbox #Checked 4
+	bpy.types.Scene.prop_bool_clusters = None #Checked 5 
 	#dbscan info class
-	bpy.types.Scene.prop_dbscan_info = False #flag
+	bpy.types.Scene.prop_dbscan_info = False #flag #Checked 6
 	#clustering option:
-	bpy.types.Scene.prop_min_samples = None
-	bpy.types.Scene.prop_eps1 = None
-	bpy.types.Scene.prop_eps2 = None
-	bpy.types.Scene.prop_interval = None
-	bpy.types.Scene.data_sil_list = None
+	bpy.types.Scene.prop_min_samples = None #Checked 7 
+	bpy.types.Scene.prop_eps1 = None #Checked 8
+	bpy.types.Scene.prop_eps2 = None #Checked 9
+	bpy.types.Scene.prop_interval = None #Checked 10
+	bpy.types.Scene.data_sil_list = None #Checked 11
 	#step2- generating clusters
-	bpy.types.Scene.prop_min_samples_s2 = None #in sync with prop_min_samples step 1
-	bpy.types.Scene.prop_optimum_eps = None
-	bpy.types.Scene.data_glyc_clusters = None
-	bpy.types.Scene.prop_nclusters = None
-	bpy.types.Scene.prop_silh = None
+	bpy.types.Scene.prop_min_samples_s2 = None #Checked 12
+	bpy.types.Scene.prop_optimum_eps = None   #Checked 13
+	bpy.types.Scene.data_glyc_clusters = None #Checked 14, list is initialised at time of invoke
+	bpy.types.Scene.prop_nclusters = None #Checked 15
+	bpy.types.Scene.prop_silh = None #Checked 16
 	#clusters measurements:
 	bpy.types.Scene.data_clusters_centroids = None
 	bpy.types.Scene.flag_clusters_measure = None
@@ -1343,50 +1362,51 @@ def register():#register takes class name | panel takes bl_idname as string
 def unregister():
 	bpy.utils.unregister_module(__name__)
 	#free memory
-	if bpy.types.Scene.data_names: #Checked
-		del bpy.types.Scene.data_names
-	if bpy.types.Scene.prop_obj_names: #dropdown list for storing objects names from the outline
-		del bpy.types.Scene.prop_obj_names
-	if bpy.types.Scene.data_obj_coords: #Checked
-		del bpy.types.Scene.data_obj_coords #Checked
-	if bpy.types.Scene.prop_bool_glycogen:
-		del bpy.types.Scene.prop_bool_glycogen #Checked
-	if bpy.types.Scene.prop_bool_clusters:
-		del bpy.types.Scene.prop_bool_clusters
-
+	if bpy.types.Scene.data_names: #Checked 1
+		del bpy.types.Scene.data_names 
+	if bpy.types.Scene.prop_obj_names: #dropdown list for storing objects names from the outline #Checked 2
+		del bpy.types.Scene.prop_obj_names 
+	if bpy.types.Scene.data_obj_coords: #Checked 3
+		del bpy.types.Scene.data_obj_coords
+	if bpy.types.Scene.prop_bool_glycogen: #Checked 4
+		del bpy.types.Scene.prop_bool_glycogen 
+	if bpy.types.Scene.prop_bool_clusters: #Checked 5
+		del bpy.types.Scene.prop_bool_clusters 
 	#dbscan info class
-	if bpy.types.Scene.prop_dbscan_info: #flag
+	if bpy.types.Scene.prop_dbscan_info: #flag #Checked 6
 		del bpy.types.Scene.prop_dbscan_info
 	#clustering option:
-	if bpy.types.Scene.prop_min_samples:
-		del bpy.types.Scene.prop_min_samples
-	if bpy.types.Scene.prop_eps1:
-		del bpy.types.Scene.prop_eps1
-	if bpy.types.Scene.prop_eps2:
-		del bpy.types.Scene.prop_eps2
-	if bpy.types.Scene.prop_interval:
+	if bpy.types.Scene.prop_min_samples: #Checked 7
+		del bpy.types.Scene.prop_min_samples  
+	if bpy.types.Scene.prop_eps1: #Checked 8
+		del bpy.types.Scene.prop_eps1 
+	if bpy.types.Scene.prop_eps2: #Checked 9
+		del bpy.types.Scene.prop_eps2 
+	if bpy.types.Scene.prop_interval: #Checked 10
 		del bpy.types.Scene.prop_interval
-	if bpy.types.Scene.data_sil_list:
+	if bpy.types.Scene.data_sil_list: #Checked 11
 		del bpy.types.Scene.data_sil_list
-	if bpy.types.Scene.prop_min_samples_s2:
-		del bpy.types.Scene.prop_min_samples_s2
-	if bpy.types.Scene.prop_optimum_eps:
+	if bpy.types.Scene.prop_min_samples_s2: #Checked 12
+		del bpy.types.Scene.prop_min_samples_s2 
+	if bpy.types.Scene.prop_optimum_eps: #Checked 13
 		del bpy.types.Scene.prop_optimum_eps
-	if bpy.types.Scene.data_glyc_clusters:
+	
+	if bpy.types.Scene.data_glyc_clusters: #Checked 14
 		del bpy.types.Scene.data_glyc_clusters
-	if bpy.types.Scene.prop_nclusters:
+	if bpy.types.Scene.prop_nclusters: #Checked 15
 		del bpy.types.Scene.prop_nclusters
-	if bpy.types.Scene.prop_silh:
+	if bpy.types.Scene.prop_silh: #Checked 16
 		del bpy.types.Scene.prop_silh
 	#clusters measurements:
-	if bpy.types.Scene.data_clusters_centroids:
+	if bpy.types.Scene.data_clusters_centroids: #Checked 17
 		del bpy.types.Scene.data_clusters_centroids
-	if bpy.types.Scene.flag_clusters_measure:
+	if bpy.types.Scene.flag_clusters_measure: #Checked 18
 		del bpy.types.Scene.flag_clusters_measure
-	if bpy.types.Scene.flag_clusters_measured:
+	if bpy.types.Scene.flag_clusters_measured: #Checked 19
 		del bpy.types.Scene.flag_clusters_measured
-	if bpy.types.Scene.data_clusters_distances:
+	if bpy.types.Scene.data_clusters_distances: #Checked 20
 		del bpy.types.Scene.data_clusters_distances
+
 	#glycogen measurements:
 	if bpy.types.Scene.prop_glyc_neighbours:
 		del bpy.types.Scene.prop_glyc_neighbours
