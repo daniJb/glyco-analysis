@@ -108,10 +108,11 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 
 	def func_init(self):
 		bpy.types.Scene.data_names = []
-		bpy.types.Scene.prop_obj_names = None
+		bpy.types.Scene.prop_obj_names = bpy.props.EnumProperty(items=[])
 		bpy.types.Scene.data_obj_coords = None
-		bpy.types.Scene.prop_bool_glycogen = None
-		bpy.types.Scene.prop_bool_clusters = None
+		#bools here wont have any effect, cause they're initialised in func_load anyways!
+		#bpy.types.Scene.prop_bool_glycogen = bpy.props.BoolProperty(name="Glycogen", default=False)
+		#bpy.types.Scene.prop_bool_clusters = bpy.props.BoolProperty(name="Clusters", default=False)
 
 		bpy.types.Scene.prop_min_samples = None
 		bpy.types.Scene.prop_eps1 = None
@@ -1306,12 +1307,13 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 def register():#register takes class name | panel takes bl_idname as string
 	
 	bpy.utils.register_module(__name__)
-	#public variables
+	#public
 	bpy.types.Scene.data_names = None 
 	bpy.types.Scene.prop_obj_names = None #dropdown list
 	bpy.types.Scene.data_obj_coords = None
 	bpy.types.Scene.prop_bool_glycogen = None #toggle checkbox
-	bpy.types.Scene.prop_bool_clusters = None #toggle checkbox
+	bpy.types.Scene.prop_bool_clusters = None
+
 	#dbscan info class
 	bpy.types.Scene.prop_dbscan_info = False #flag
 	#clustering option:
@@ -1341,16 +1343,17 @@ def register():#register takes class name | panel takes bl_idname as string
 def unregister():
 	bpy.utils.unregister_module(__name__)
 	#free memory
-	if bpy.types.Scene.data_names: 
+	if bpy.types.Scene.data_names: #Checked
 		del bpy.types.Scene.data_names
 	if bpy.types.Scene.prop_obj_names: #dropdown list for storing objects names from the outline
 		del bpy.types.Scene.prop_obj_names
-	if bpy.types.Scene.data_obj_coords:
-		del bpy.types.Scene.data_obj_coords
+	if bpy.types.Scene.data_obj_coords: #Checked
+		del bpy.types.Scene.data_obj_coords #Checked
 	if bpy.types.Scene.prop_bool_glycogen:
-		del bpy.types.Scene.prop_bool_glycogen
+		del bpy.types.Scene.prop_bool_glycogen #Checked
 	if bpy.types.Scene.prop_bool_clusters:
 		del bpy.types.Scene.prop_bool_clusters
+
 	#dbscan info class
 	if bpy.types.Scene.prop_dbscan_info: #flag
 		del bpy.types.Scene.prop_dbscan_info
