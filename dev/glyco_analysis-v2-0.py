@@ -188,6 +188,22 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 			bpy.types.Scene.prop_total_granules = StringProperty(name='Total Granules:')#,default="")
 			bpy.types.Scene.prop_glyc_to_neighb_dist = StringProperty(name='Distance:')#,default="")
 			bpy.types.Scene.data_glyc_distances = []
+
+			bpy.types.Scene.data_glyc_distances_occur = []
+
+			bpy.types.Scene.glycogen_attrib_np = np.array([])
+			bpy.types.Scene.glycogen_verts_np = np.array([])
+			bpy.types.Scene.neur_obj_verts_np = np.array([])
+			bpy.types.Scene.neur_obj_attrib_np = np.array([])
+
+			bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = {}
+			bpy.types.Scene.neuro_glyList_dict = {}
+
+			bpy.types.Scene.data_glyc_neighbours = []
+			bpy.types.Scene.data_noOfGlyc = []
+			bpy.types.Scene.data_glyc_to_neighb_dist = []
+
+
 			#if bpy.types.Scene.data_glyc_distances:
 			#	print("its not none")
 
@@ -525,6 +541,8 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		
 		bpy.types.Scene.data_glyc_distances = []
 		bpy.types.Scene.data_glyc_distances_occur = []
+		#bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = {}
+		#bpy.types.Scene.neuro_glyList_dict = {}
 
 	def occurences(self):
 		objects_names=[]
@@ -560,12 +578,12 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		templist1 = []
 		current_neuro = list(bpy.types.Scene.neuro_gly_glyFreq_dic_sorted.values())[0]
 		for glyname, objname in bpy.types.Scene.neuro_gly_glyFreq_dic_sorted.items(): #.item refers to a pair(key,value), switching keys to values and values to keys
-			print("outer",current_neuro)
+			#print("outer",current_neuro)
 			if objname == str(current_neuro):
-				print("in if",current_neuro)
+				#print("in if",current_neuro)
 				templist1.append(glyname)
 			else:
-				print("in else",current_neuro)
+				#print("in else",current_neuro)
 				bpy.types.Scene.neuro_glyList_dict[current_neuro]=templist1
 				current_neuro = objname
 				templist1 = []
@@ -724,8 +742,8 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 	objects_names = []
 	np_points_ = []
 
-	layer_index = 0
-	layers_array = []
+	layer_index = 0 #
+	layers_array = [] # not considered initialization, if not reput in invoke, value will accumulate
 
 	def invoke(self,context,event):
 		gly_names =[]
@@ -775,7 +793,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		for row_data in clusters_sorted_list:
 			if(row_data[2] != -1):
 				self.get_glyco_layer(row_data[0])
-				print(row_data[2])
+				print(row_data[2])#should be zero
 				prev_label = row_data[2]
 				break
 		data_size = len(clusters_sorted_list)
@@ -866,20 +884,23 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 
 		return{"FINISHED"}
 
-	@classmethod
 	## Get Glycogen Layer ##
+	@classmethod
 	def get_glyco_layer(self, obj_name):
+		self.layer_index = 0
+		self.layers_array = []
+
 		obj = bpy.data.objects[obj_name]
 		thisObjLayer = [i for i in range(len(obj.layers)) if obj.layers[i] == True] #returns objects layer
 		if(thisObjLayer):
-			self.layer_indx = thisObjLayer[0]
+			self.layer_index = thisObjLayer[0]
 		
 		for i in range(20): #0 to 19 total 20 layers
-			if i == self.layer_indx:
+			if i == self.layer_index:
 				self.layers_array.append(True)
 			else:
 				self.layers_array.append(False)
-		print(self.layer_indx)
+		print(self.layer_index)
 		print(self.layers_array)
 	###---- MAKE METERIAL FUNCTION----
 	def makeMaterial(self, name, diffuse, specular, alpha):
@@ -952,7 +973,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		bpy.context.object.name = 'fake' + label
 		#HERE last edit Sept10th,2014
 		#print(self.layer_indx)                                                                                                                            
-		bpy.context.scene.layers[self.layer_indx] = True #11 but 12 in count
+		bpy.context.scene.layers[self.layer_index] = True #11 but 12 in count
 		obj = bpy.context.active_object
 		if obj.name == 'fake'+label and obj.type == 'MESH':
 			bpy.ops.object.mode_set(mode='EDIT')
@@ -1348,16 +1369,30 @@ def register():#register takes class name | panel takes bl_idname as string
 	bpy.types.Scene.prop_nclusters = None #Checked 15
 	bpy.types.Scene.prop_silh = None #Checked 16
 	#clusters measurements:
-	bpy.types.Scene.data_clusters_centroids = None
-	bpy.types.Scene.flag_clusters_measure = None
-	bpy.types.Scene.flag_clusters_measured = None
-	bpy.types.Scene.data_clusters_distances = None
+	bpy.types.Scene.data_clusters_centroids = None #Checked 17
+	bpy.types.Scene.flag_clusters_measure = None #Checked 18
+	bpy.types.Scene.flag_clusters_measured = None #Checked 19
+	bpy.types.Scene.data_clusters_distances = None #Checked 20
 	#glycogens measurements:
-	bpy.types.Scene.prop_glyc_neighbours = None
-	bpy.types.Scene.prop_associated_glyco = None
-	bpy.types.Scene.prop_total_granules = None
-	bpy.types.Scene.prop_glyc_to_neighb_dist = None
-	bpy.types.Scene.data_glyc_distances = None
+	bpy.types.Scene.data_glyc_distances = None #Checked 21
+	bpy.types.Scene.data_glyc_distances_occur = None #Checked 22
+	bpy.types.Scene.glycogen_attrib_np = np.array([]) #Checked 23
+	bpy.types.Scene.glycogen_verts_np = np.array([]) #Checked 24
+	bpy.types.Scene.neur_obj_verts_np = np.array([]) #Checked 25
+	bpy.types.Scene.neur_obj_attrib_np = np.array([]) #Checked 26
+
+	bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = None #Checked 27
+	bpy.types.Scene.neuro_glyList_dict = None #Checked 28
+
+	bpy.types.Scene.prop_glyc_neighbours = None #Checked 29
+	bpy.types.Scene.prop_associated_glyco = None #Checked 30
+	bpy.types.Scene.prop_total_granules = None #Checked 31
+	bpy.types.Scene.prop_glyc_to_neighb_dist = None #Checked 32
+
+	bpy.types.Scene.data_glyc_neighbours = None #Checked 33
+	bpy.types.Scene.data_noOfGlyc = None #Checked 34
+	bpy.types.Scene.data_glyc_to_neighb_dist = None #Checked 35
+	
 	
 def unregister():
 	bpy.utils.unregister_module(__name__)
@@ -1408,16 +1443,40 @@ def unregister():
 		del bpy.types.Scene.data_clusters_distances
 
 	#glycogen measurements:
-	if bpy.types.Scene.prop_glyc_neighbours:
+	if bpy.types.Scene.data_glyc_distances: #Checked 21
+		del bpy.types.Scene.data_glyc_distances 
+	if bpy.types.Scene.data_glyc_distances_occur: #Checked 22
+		del bpy.types.Scene.data_glyc_distances_occur
+
+	if bpy.types.Scene.glycogen_attrib_np.size>0: #Checked 23
+		del bpy.types.Scene.glycogen_attrib_np
+	if bpy.types.Scene.glycogen_verts_np.size>0: #Checked 24
+		del bpy.types.Scene.glycogen_verts_np
+	if bpy.types.Scene.neur_obj_verts_np.size>0: #Checked 25
+		del bpy.types.Scene.neur_obj_verts_np
+	if bpy.types.Scene.neur_obj_attrib_np.size>0: #Checked 26
+		del bpy.types.Scene.neur_obj_attrib_np
+	
+	if bpy.types.Scene.neuro_gly_glyFreq_dic_sorted: #Checked 27
+		del bpy.types.Scene.neuro_gly_glyFreq_dic_sorted
+	if bpy.types.Scene.neuro_glyList_dict: #Checked 28
+		del bpy.types.Scene.neuro_glyList_dict
+
+	if bpy.types.Scene.prop_glyc_neighbours: #Checked 29
 		del bpy.types.Scene.prop_glyc_neighbours
-	if bpy.types.Scene.prop_associated_glyco:
+	if bpy.types.Scene.prop_associated_glyco: #Checked 30
 		del bpy.types.Scene.prop_associated_glyco
-	if bpy.types.Scene.prop_total_granules:
+	if bpy.types.Scene.prop_total_granules: #Checked 31
 		del bpy.types.Scene.prop_total_granules
-	if bpy.types.Scene.prop_glyc_to_neighb_dist:
+	if bpy.types.Scene.prop_glyc_to_neighb_dist: #Checked 32
 		del bpy.types.Scene.prop_glyc_to_neighb_dist
-	if bpy.types.Scene.data_glyc_distances:
-		del bpy.types.Scene.data_glyc_distances
+	
+	if bpy.types.Scene.data_glyc_neighbours: #Checked 33
+		del bpy.types.Scene.data_glyc_neighbours
+	if bpy.types.Scene.data_noOfGlyc: #Checked 34
+		del  bpy.types.Scene.data_noOfGlyc
+	if bpy.types.Scene.data_glyc_to_neighb_dist: #Checked 35
+		del bpy.types.Scene.data_glyc_to_neighb_dist
 	
 	
 	
