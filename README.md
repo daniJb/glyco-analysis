@@ -15,12 +15,8 @@ The dataset should follow certain conventions such as names and objects-category
 More details can be found in the [wiki][]
 [wiki]:https://github.com/daniJb/glyco-analysis/wiki
 
-For better runtime performance, you need to set OMP_NUM_THREADS to 18. This is for an 8GB memory, 8 cores machine.
-```
-$ export OMP_NUM_THREADS=18
-```
 
-This was tested on Linux SL6, CentOS7 and MacOSX (Yosemite/Mountain Lion).
+Addon has been tested on Linux SL6, CentOS7 and MacOSX (Yosemite/Mountain Lion).
 
 #### Addon features:
 - hide/unhide group of objects based on selection.
