@@ -10,8 +10,10 @@ For the addon to run properly it requires python3.4.2 and blender2.72b. Python i
 - scipy
 - sklearn
 - matplotlib
-The dataset should follow certain conventions such as names and objects category layers, this is mostly relates to Blender.
-More details can be found in the wiki [link!].
+
+The dataset should follow certain conventions such as names and objects-category-layers, this is mostly relates to Blender.
+More details can be found in the [wiki][]
+[wiki]:https://github.com/daniJb/glyco-analysis/wiki
 
 For better runtime performance, you need to set OMP_NUM_THREADS to 18.
 ```
