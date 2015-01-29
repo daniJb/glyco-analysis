@@ -68,25 +68,9 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 
 	def func_init(self):
 		bpy.types.Scene.data_names = []
-		bpy.types.Scene.prop_obj_names = None
+		bpy.types.Scene.prop_obj_names = bpy.props.EnumProperty(items=[])
 		bpy.types.Scene.data_obj_coords = None
-		bpy.types.Scene.prop_bool_glycogen = None
-		bpy.types.Scene.prop_bool_clusters = None
-
-		bpy.types.Scene.prop_min_samples = None
-		bpy.types.Scene.prop_eps1 = None
-		bpy.types.Scene.prop_eps2 = None
-		bpy.types.Scene.prop_interval = None
-		#step2
-		bpy.types.Scene.prop_min_samples_s2 = None
-		bpy.types.Scene.prop_optimum_eps = None
-		bpy.types.Scene.prop_nclusters = None
-		bpy.types.Scene.prop_silh = None
-		#measurements: The Activate/Reload button if its pressed for Reload then it shouldnt get rid of certain existing values:
-		if bpy.types.Scene.data_glyc_clusters is None:
-			bpy.types.Scene.flag_clusters_measure = None
-			bpy.types.Scene.flag_clusters_measured = None
-
+		
 	def func_load_objectsNames(self):
 		lst = []
 		symbols = "-_"
@@ -110,43 +94,51 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 			update=update_prop_bool_glyc)
 			bpy.types.Scene.prop_bool_clusters = bpy.props.BoolProperty(name="Clusters", description=" ",
 			update=update_prop_bool_clust)
-			bpy.types.Scene.prop_min_samples = bpy.props.IntProperty(name='Minimum Samples', default=20)
-			bpy.types.Scene.prop_eps1 = bpy.props.FloatProperty(name='from', default=0.2)
-			bpy.types.Scene.prop_eps2 = bpy.props.FloatProperty(name='to', default=0.63)
-			bpy.types.Scene.prop_interval = bpy.props.FloatProperty(name='Interval', default=0.01)
+			bpy.types.Scene.prop_min_samples = bpy.props.IntProperty(name='Minimum Samples')
+			bpy.types.Scene.prop_eps1 = bpy.props.FloatProperty(name='from')
+			bpy.types.Scene.prop_eps2 = bpy.props.FloatProperty(name='to')
+			bpy.types.Scene.prop_interval = bpy.props.FloatProperty(name='Interval')
+			bpy.context.scene.prop_min_samples = 19
+			bpy.context.scene.prop_eps1 = 0.35
+			bpy.context.scene.prop_eps2 = 0.38
+			bpy.context.scene.prop_interval = 0.01			
 			#step 2
 			bpy.types.Scene.prop_min_samples_s2 = bpy.props.IntProperty(name='Minimum Samples', default=20)
 			bpy.types.Scene.prop_optimum_eps = bpy.props.FloatProperty(name='Optimum Epsilon', default=00)
 			bpy.types.Scene.prop_nclusters = StringProperty(name='', default="")
 			bpy.types.Scene.prop_silh = StringProperty(name='',default="")#Silhouette Coefficient
-			if bpy.types.Scene.data_glyc_clusters is None:
-				bpy.types.Scene.flag_clusters_measure = False 
-				bpy.types.Scene.flag_clusters_measured = False
+			#initialization:
+			bpy.context.scene.prop_min_samples_s2 = 19
+			bpy.context.scene.prop_optimum_eps = 0.0
+			bpy.context.scene.prop_nclusters=""
+			bpy.context.scene.prop_silh = ""
+			#should initialise all data holders:
+			bpy.types.Scene.data_glyc_clusters = [] #clustering-clusters section
+			bpy.types.Scene.data_clusters_centroids = [] #clusters measures
+			bpy.types.Scene.data_clusters_distances = [] # =
+			bpy.types.Scene.flag_clusters_measure = False  # =
+			bpy.types.Scene.flag_clusters_measured = False # = to activate export data button
 			#glycogen Measures:
 			empty = [("","","")]
 			bpy.types.Scene.prop_glyc_neighbours = EnumProperty(name="Neibouring Objects",items=empty)
 			bpy.types.Scene.prop_associated_glyco = EnumProperty(name='Associated Granules:',items=empty)
-			bpy.types.Scene.prop_total_granules = StringProperty(name='Total Granules:',default="")
-			bpy.types.Scene.prop_glyc_to_neighb_dist = StringProperty(name='Distance:',default="")
+			bpy.types.Scene.prop_total_granules = StringProperty(name='Total Granules:')
+			bpy.types.Scene.prop_glyc_to_neighb_dist = StringProperty(name='Distance:')
 			bpy.types.Scene.data_glyc_distances = []
-			if bpy.types.Scene.data_glyc_distances:
-				print("its not none")
 
-		else:
-			if bpy.types.Scene.prop_bool_glycogen != None:
-				del bpy.types.Scene.prop_bool_glycogen
-			if bpy.types.Scene.prop_bool_clusters != None:
-				del bpy.types.Scene.prop_bool_clusters
-			#clustering option:
-			if bpy.types.Scene.prop_min_samples:
-				del bpy.types.prop_Scene.prop_min_samples
-			if bpy.types.Scene.prop_eps1:
-				del bpy.types.Scene.prop_eps1
-			if bpy.types.Scene.prop_eps2:
-				del bpy.types.Scene.prop_eps2
-			if bpy.types.Scene.prop_interval:
-				del bpy.types.Scene.prop_interval
-			#glycogen option:
+			bpy.types.Scene.data_glyc_distances_occur = []
+
+			bpy.types.Scene.glycogen_attrib_np = np.array([])
+			bpy.types.Scene.glycogen_verts_np = np.array([])
+			bpy.types.Scene.neur_obj_verts_np = np.array([])
+			bpy.types.Scene.neur_obj_attrib_np = np.array([])
+
+			bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = {}
+			bpy.types.Scene.neuro_glyList_dict = {}
+
+			bpy.types.Scene.data_glyc_neighbours = []
+			bpy.types.Scene.data_noOfGlyc = []
+			bpy.types.Scene.data_glyc_to_neighb_dist = []
 		return lst
 	#---------------#
 	def func_updateObjectsNames(self):
@@ -608,7 +600,7 @@ class OBJECTS_OT_calculate_clustering_param(bpy.types.Operator):
 		bpy.context.scene.prop_eps1= float("{0:.2f}".format(bpy.context.scene.prop_eps1))
 		bpy.context.scene.prop_eps2= float("{0:.2f}".format(bpy.context.scene.prop_eps2))
 		bpy.context.scene.prop_interval= float("{0:.2f}".format(bpy.context.scene.prop_interval))
-		
+
 		for x in np.arange(bpy.context.scene.prop_eps1, bpy.context.scene.prop_eps2, bpy.context.scene.prop_interval):
 			db = DBSCAN(eps=x, min_samples=bpy.context.scene.prop_min_samples).fit(np_points)
 			core_samples = db.core_sample_indices_
@@ -621,6 +613,7 @@ class OBJECTS_OT_calculate_clustering_param(bpy.types.Operator):
 			bpy.types.Scene.data_sil_list.append(sil_index)
 			bpy.types.Scene.data_nclusters.append(no_clusters)
 			bpy.types.Scene.data_epsx_list.append(x)
+
 
 		bpy.context.scene.prop_min_samples_s2 = bpy.context.scene.prop_min_samples
 		bpy.context.scene.prop_optimum_eps = bpy.context.scene.data_epsx_list[bpy.context.scene.data_sil_list.index(max(bpy.context.scene.data_sil_list))]
@@ -702,7 +695,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		for row_data in clusters_sorted_list:
 			if(row_data[2] != -1):
 				self.get_glyco_layer(row_data[0])
-				print(row_data[2])
+				print(row_data[2])#should be zero
 				prev_label = row_data[2]
 				break
 		data_size = len(clusters_sorted_list)
@@ -786,20 +779,22 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 
 		return{"FINISHED"}
 
-	@classmethod
 	## Get Glycogen Layer ##
+	@classmethod
 	def get_glyco_layer(self, obj_name):
+		self.layer_index = 0
+		self.layers_array = []
 		obj = bpy.data.objects[obj_name]
 		thisObjLayer = [i for i in range(len(obj.layers)) if obj.layers[i] == True] #returns objects layer
 		if(thisObjLayer):
-			self.layer_indx = thisObjLayer[0]
+			self.layer_index = thisObjLayer[0]
 		
 		for i in range(20): #0 to 19 total 20 layers
-			if i == self.layer_indx:
+			if i == self.layer_index:
 				self.layers_array.append(True)
 			else:
 				self.layers_array.append(False)
-		print(self.layer_indx)
+		print(self.layer_index)
 		print(self.layers_array)
 	###---- MAKE METERIAL FUNCTION----
 	def makeMaterial(self, name, diffuse, specular, alpha):
@@ -871,7 +866,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		bpy.ops.mesh.primitive_uv_sphere_add(size=0.03, location = (0.0,0.0,0.0),layers=self.layers_array)
 		bpy.context.object.name = 'fake' + label
 		#print(self.layer_indx)                                                                                                                            
-		bpy.context.scene.layers[self.layer_indx] = True #11 but 12 in count
+		bpy.context.scene.layers[self.layer_index] = True #11 but 12 in count
 		obj = bpy.context.active_object
 		if obj.name == 'fake'+label and obj.type == 'MESH':
 			bpy.ops.object.mode_set(mode='EDIT')
@@ -928,8 +923,8 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 						ob.select = True
 						bpy.ops.object.parent_set(type='OBJECT')
 
-	def init(self):
-		bpy.types.Scene.data_glyc_clusters = []
+	#def init(self):
+	#	bpy.types.Scene.data_glyc_clusters = []
 		
 class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 	bl_idname = "objects.clusters_nearest_neighbours"
@@ -940,7 +935,7 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		clusters are generated.
 	"""	
 	def invoke(self,context,event):
-		self.initialise()
+		#self.initialise()
 		#1-compute clusters centroids:
 		bpy.types.Scene.data_clusters_centroids = self.get_clusters_centroids()
 		#2-compute distances between cluster centroid and rest of neural objects vertices
@@ -1002,10 +997,10 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		bpy.types.Scene.flag_clusters_measured = True
 
 		return{"FINISHED"}
-	@classmethod
-	def initialise(self):
-		bpy.types.Scene.data_clusters_centroids = []
-		bpy.types.Scene.data_clusters_distances = []
+	#@classmethod
+	#def initialise(self):
+	#	bpy.types.Scene.data_clusters_centroids = []
+	#	bpy.types.Scene.data_clusters_distances = []
 
 	def get_clusters_centroids(self):
 		glyNames = []
@@ -1099,7 +1094,7 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 		obj = context.object
 		row1 = layout.row()
 		row1.alignment = 'LEFT'
-		row1.operator("view3d.activate_addon_button", "Activate/Reload addon")
+		row1.operator("view3d.activate_addon_button", "Activate/Reset addon")
 
 		#hide-unhide objects -general panel box-
 		box1 = layout.box()
@@ -1245,11 +1240,24 @@ def register():
 	bpy.types.Scene.flag_clusters_measured = None
 	bpy.types.Scene.data_clusters_distances = None
 	#glycogens measurements:
+	bpy.types.Scene.data_glyc_distances = None
+	bpy.types.Scene.data_glyc_distances_occur = None
+	bpy.types.Scene.glycogen_attrib_np = np.array([])
+	bpy.types.Scene.glycogen_verts_np = np.array([])
+	bpy.types.Scene.neur_obj_verts_np = np.array([])
+	bpy.types.Scene.neur_obj_attrib_np = np.array([])
+
+	bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = None
+	bpy.types.Scene.neuro_glyList_dict = None
+
 	bpy.types.Scene.prop_glyc_neighbours = None
 	bpy.types.Scene.prop_associated_glyco = None
 	bpy.types.Scene.prop_total_granules = None
 	bpy.types.Scene.prop_glyc_to_neighb_dist = None
-	bpy.types.Scene.data_glyc_distances = None
+	
+	bpy.types.Scene.data_glyc_neighbours = None
+	bpy.types.Scene.data_noOfGlyc = None
+	bpy.types.Scene.data_glyc_to_neighb_dist = None
 	
 def unregister():
 	bpy.utils.unregister_module(__name__)
@@ -1282,6 +1290,7 @@ def unregister():
 		del bpy.types.Scene.prop_min_samples_s2
 	if bpy.types.Scene.prop_optimum_eps:
 		del bpy.types.Scene.prop_optimum_eps
+
 	if bpy.types.Scene.data_glyc_clusters:
 		del bpy.types.Scene.data_glyc_clusters
 	if bpy.types.Scene.prop_nclusters:
@@ -1298,6 +1307,25 @@ def unregister():
 	if bpy.types.Scene.data_clusters_distances:
 		del bpy.types.Scene.data_clusters_distances
 	#glycogen measurements:
+	if bpy.types.Scene.data_glyc_distances:
+		del bpy.types.Scene.data_glyc_distances 
+	if bpy.types.Scene.data_glyc_distances_occur:
+		del bpy.types.Scene.data_glyc_distances_occur
+
+	if bpy.types.Scene.glycogen_attrib_np.size>0:
+		del bpy.types.Scene.glycogen_attrib_np
+	if bpy.types.Scene.glycogen_verts_np.size>0:
+		del bpy.types.Scene.glycogen_verts_np
+	if bpy.types.Scene.neur_obj_verts_np.size>0:
+		del bpy.types.Scene.neur_obj_verts_np
+	if bpy.types.Scene.neur_obj_attrib_np.size>0:
+		del bpy.types.Scene.neur_obj_attrib_np
+	
+	if bpy.types.Scene.neuro_gly_glyFreq_dic_sorted:
+		del bpy.types.Scene.neuro_gly_glyFreq_dic_sorted
+	if bpy.types.Scene.neuro_glyList_dict:
+		del bpy.types.Scene.neuro_glyList_dict
+
 	if bpy.types.Scene.prop_glyc_neighbours:
 		del bpy.types.Scene.prop_glyc_neighbours
 	if bpy.types.Scene.prop_associated_glyco:
@@ -1306,8 +1334,13 @@ def unregister():
 		del bpy.types.Scene.prop_total_granules
 	if bpy.types.Scene.prop_glyc_to_neighb_dist:
 		del bpy.types.Scene.prop_glyc_to_neighb_dist
-	if bpy.types.Scene.data_glyc_distances:
-		del bpy.types.Scene.data_glyc_distances
+	
+	if bpy.types.Scene.data_glyc_neighbours:
+		del bpy.types.Scene.data_glyc_neighbours
+	if bpy.types.Scene.data_noOfGlyc:
+		del  bpy.types.Scene.data_noOfGlyc
+	if bpy.types.Scene.data_glyc_to_neighb_dist:
+		del bpy.types.Scene.data_glyc_to_neighb_dist
 	
 	
 	
