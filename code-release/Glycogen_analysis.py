@@ -103,10 +103,10 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 			bpy.context.scene.prop_eps2 = 0.38
 			bpy.context.scene.prop_interval = 0.01			
 			#step 2
-			bpy.types.Scene.prop_min_samples_s2 = bpy.props.IntProperty(name='Minimum Samples', default=20)
-			bpy.types.Scene.prop_optimum_eps = bpy.props.FloatProperty(name='Optimum Epsilon', default=00)
-			bpy.types.Scene.prop_nclusters = StringProperty(name='', default="")
-			bpy.types.Scene.prop_silh = StringProperty(name='',default="")#Silhouette Coefficient
+			bpy.types.Scene.prop_min_samples_s2 = bpy.props.IntProperty(name='Minimum Samples')
+			bpy.types.Scene.prop_optimum_eps = bpy.props.FloatProperty(name='Optimum Epsilon')
+			bpy.types.Scene.prop_nclusters = StringProperty(name='')
+			bpy.types.Scene.prop_silh = StringProperty(name='')#Silhouette Coefficient
 			#initialization:
 			bpy.context.scene.prop_min_samples_s2 = 19
 			bpy.context.scene.prop_optimum_eps = 0.0
@@ -980,14 +980,14 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 			for clusterId, objctsIndx, dist in result:
 				bpy.types.Scene.data_clusters_distances.append(
 					[np.array(bpy.types.Scene.data_clusters_centroids)[clusterId,0],
-					np.array(bpy.types.Scene.data_clusters_centroids)[clusterId,1],
+					np.array(bpy.types.Scene.data_clusters_centroids)[clusterId,4],
 					bpy.types.Scene.neur_obj_attrib_np[objctsIndx,0],
 					bpy.types.Scene.neur_obj_attrib_np[objctsIndx,1],
 					dist
 					])
 				print(
 					[np.array(bpy.types.Scene.data_clusters_centroids)[clusterId,0],
-					np.array(bpy.types.Scene.data_clusters_centroids)[clusterId,1],
+					np.array(bpy.types.Scene.data_clusters_centroids)[clusterId,4],
 					bpy.types.Scene.neur_obj_attrib_np[objctsIndx,0],
 					bpy.types.Scene.neur_obj_attrib_np[objctsIndx,1],
 					dist
@@ -1050,7 +1050,7 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 			print("writing data of [clusters centroids to spine-bouton centroids] distances")
 			with open(the_name,'wt') as output:
 				writer = csv.writer(output, delimiter='\t')
-				writer.writerow(['CId','CCentroid','ObjectName','ObjectParent', 'Distance'])
+				writer.writerow(['CId','#granules','ObjectName','ObjectParent', 'Distance'])
 				rowToWrite = []
 				for CId, CCentroid,ObjectName,ObjectParent, Distance in bpy.types.Scene.data_clusters_distances:
 					writer.writerow([CId, CCentroid,ObjectName,ObjectParent, Distance])
