@@ -171,24 +171,28 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 #---------------------------------------------------------------------------------
 # 	  					# UPDATE / PUBLIC FUNCTIONS #
 #---------------------------------------------------------------------------------
-def UIlistUpdate(scene):
-	item = scene.UIList_glyc_neighb[scene.UIList_glyc_neighb_indx]
+def UIlistUpdate(context):
+	scn = context.scene
+	item = scn.UIList_glyc_neighb[scn.UIList_glyc_neighb_indx]
 	#item = scene.my_list[scene.list_index]
 	#print('scene.UIList_glyc_neighb_indx',scene.UIList_glyc_neighb_indx)
 	#print('int(bpy.context.scene.prop_glyc_neighbours)',int(bpy.context.scene.prop_glyc_neighbours))
 	listtemp = []
-	listtemp = bpy.types.Scene.neuro_glyList_dict[bpy.types.Scene.data_glyc_neighbours[scene.UIList_glyc_neighb_indx]]
+	listtemp = bpy.types.Scene.neuro_glyList_dict[bpy.types.Scene.data_glyc_neighbours[scn.UIList_glyc_neighb_indx]]
 	enum2 = []
 	for _index, enumval in enumerate(listtemp):
 		enum2.append((enumval,enumval, ""))
-	bpy.types.Scene.li_associated_glyco = EnumProperty(name="Associated Granules:", items=enum2)#, update=PTlistUpdate)
+	bpy.types.Scene.li_associated_glyco = EnumProperty(name="Associated Granules:", items=enum2, update=PTlistUpdate)
+	#bpy.context.scene.li_associated_glyco = enum2[0][0]
 	
+	#bpy.types.Scene.temp = EnumProperty(name="Associated Granules:", items=enum2, update=PTlistUpdate)
+	
+	#update distance accordingly
+	#for glyname, dist in bpy.context.scene.data_glyc_to_neighb_dist:
+	#	if glyname == bpy.context.scene.li_associated_glyco:
+	#		bpy.context.scene.li_glyc_to_neighb_dist = str(dist)
 
-	for glyname, dist in bpy.context.scene.data_glyc_to_neighb_dist:
-		if glyname == bpy.context.scene.li_associated_glyco:
-			bpy.context.scene.li_glyc_to_neighb_dist = str(dist)
-
-	return None
+	#return None
 
 def PTlistUpdate(self,context):
 	for glyname, dist in bpy.context.scene.data_glyc_to_neighb_dist:
@@ -497,7 +501,7 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		
 		bpy.types.Scene.data_glyc_distances = []
 		bpy.types.Scene.data_glyc_distances_occur = []
-		bpy.types.Scene.li_associated_glyco = EnumProperty(name='Associated Granules:',items=[])#,update=PTlistUpdate)
+		#bpy.types.Scene.li_associated_glyco = EnumProperty(name='Associated Granules:',items=[],update=PTlistUpdate)
 		bpy.types.Scene.li_glyc_to_neighb_dist = StringProperty(name='Distance:',default="")
 
 	def occurences(self):
@@ -564,17 +568,17 @@ class SCENE_UI_List(bpy.types.UIList):
 	def draw_item(self,context,layout, data, item, icon, active_data, active_propname, index, flt_flag):
 		custom_icon = 'OBJECT_DATAMODE'
 		if self.layout_type in {'DEFAULT','COMPACT'}:
-			col = layout.column()
-			col.alignment = 'LEFT'
-			col.prop(item,'li_row_number')
-			col.enabled = False
+			#col = layout.column()
+			#col.alignment = 'LEFT'
+			#col.prop(item,'li_row_number')
+			#col.enabled = False
 			layout.label(item.li_glyc_neighbours)
 		elif self.layout_type in {'GRID'}:
 			layout.alignment = 'CENTER'
 			layout.label("", icon=custom_icon)
 		#print("flt_flags",flt_flags) spine01 Dendrite050
 		#print("filter_name",self.filter_name)
-	"""def filter_items(self, context, data, propname):
+	def filter_items(self, context, data, propname):
 		
 		#print('self.filter_name',self.filter_name)
 		pgroup = getattr(data,propname)
@@ -590,10 +594,11 @@ class SCENE_UI_List(bpy.types.UIList):
 		if not flt_flags:
 			flt_flags = [self.bitflag_filter_item] * len(pgroup)
 			flt_neworder = helper_funcs.sort_items_by_name(pgroup, "li_glyc_neighbours")
-			#print('flt_flags',flt_flags)
-			#print('flt_neworder',flt_neworder)
+		
+		#print('flt_flags',flt_flags)
+		#print('flt_neworder',flt_neworder)
 
-		return flt_flags, flt_neworder"""
+		return flt_flags, flt_neworder
 
 
 #--------------------------------------------------------------------------------
@@ -1174,6 +1179,33 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 #--------------------------------------------------------------------------------
 #                                   PANEL LAYOUT
 #--------------------------------------------------------------------------------
+class fixME(bpy.types.Operator):
+	bl_idname="fix.operator"
+	bl_label= "fix a stuck dropdown box"
+
+	def invoke(self,context,event):
+		UIlistUpdate(context)
+		"""bpy.types.Scene.error_flag = True
+
+		scn = context.scene
+		item = scn.UIList_glyc_neighb[scn.UIList_glyc_neighb_indx]
+		print(item)
+		
+		listtemp = []
+		listtemp = bpy.types.Scene.neuro_glyList_dict[bpy.types.Scene.data_glyc_neighbours[scn.UIList_glyc_neighb_indx]]
+		print(listtemp)
+		
+		enum2 = []
+		for _index, enumval in enumerate(listtemp):
+			enum2.append((enumval,enumval, ""))
+		#bpy.types.Scene.li_associated_glyco = EnumProperty(name="Associated Granules:", items=enum2, update=PTlistUpdate)
+		bpy.types.Scene.temp = EnumProperty(name="Associated Granules:", items=enum2, update=PTlistUpdate)
+		bpy.context.scene.li_associated_glyco = bpy.context.scene.temp"""
+
+
+		return{"FINISHED"}
+
+
 class UI_VIEW3D_PT(bpy.types.Panel):
 	bl_idname = "UI_VIEW3D_PT"
 	bl_label = "Glycogen Analysis"
@@ -1284,9 +1316,8 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 				
 				if bpy.types.Scene.data_glyc_distances:
 					row_glyc.enabled = True
-
 					row1_glyc = layout.row()
-					row1_glyc.label("Output View 1:")
+					row1_glyc.label("---Output View1---")
 
 					row2_glyc = layout.row()
 					row2_glyc.prop(scene,'prop_glyc_neighbours')
@@ -1302,29 +1333,40 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 					row5_glyc.enabled = False
 
 					# ++++ ALTERNATIVE VIEW +++++ # bouton1 Axon138_E
-					#row_UIList = layout.row()
-					#row_UIList.label("Output View 2:")
+					row_UIList = layout.row()
+					row_UIList.label("---Output View2---")
 					layout.template_list("SCENE_UI_List", "", scene, "UIList_glyc_neighb", scene, "UIList_glyc_neighb_indx" )
 					if scene.UIList_glyc_neighb_indx >= 0 and len(scene.UIList_glyc_neighb) > 0:
-							item = scene.UIList_glyc_neighb[scene.UIList_glyc_neighb_indx]
-							col_UIlist = layout.column()
-							col_UIlist.prop(item, "li_glyc_neighbours")
-							col_UIlist.prop(item, "li_total_granules")
-							col_UIlist.enabled = False
-							UIlistUpdate(scene)
-					row_UIList1 = layout.row()
-					row_UIList1.prop(scene,'li_associated_glyco')
-					col_UIlist2 = layout.column()
-					col_UIlist2.prop(scene,'li_glyc_to_neighb_dist')
-					col_UIlist2.enabled = False
+						item = scene.UIList_glyc_neighb[scene.UIList_glyc_neighb_indx]
+						col_UIlist = layout.column()
+						col_UIlist.prop(item, "li_glyc_neighbours")
+						col_UIlist.prop(item, "li_total_granules")
+						col_UIlist.enabled = False
+						
+						row_UIList1 = layout.row()
+						#if not bpy.types.Scene.error_flag:
+						row_UIList1.operator("fix.operator","Associated Granules")
+						row_UIList1.prop(scene,'li_associated_glyco')
+						#else:
+						#	row_UIList1.prop(scene,'temp')
+						col_UIlist2 = layout.column()
+						col_UIlist2.prop(scene,'li_glyc_to_neighb_dist')
+						col_UIlist2.enabled = False
+					#if button fix was pressed:
+					
 #--------------------------------------------------------------------------------
 #                                   MAIN EXECUTE
 #---------------------------------------------------------------------------------
 def register():
 	
 	bpy.utils.register_module(__name__)
+	bpy.types.Scene.error_flag = False
 	bpy.types.Scene.UIList_glyc_neighb = CollectionProperty(type= PG_List_Entry)#name of property group class
 	bpy.types.Scene.UIList_glyc_neighb_indx = IntProperty(name="index for UIList_glyc_neighb", default=0)
+	bpy.types.Scene.temp = EnumProperty(name='Associated Granules:',items=[],update=PTlistUpdate)
+	bpy.types.Scene.li_associated_glyco = EnumProperty(name='Associated Granules:',items=[],update=PTlistUpdate)
+
+
 	#public variables
 	bpy.types.Scene.data_names = None 
 	bpy.types.Scene.prop_obj_names = None #dropdown list
