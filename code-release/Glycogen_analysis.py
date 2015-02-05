@@ -43,6 +43,67 @@ import time
 import os
 from os.path import expanduser
 import time
+
+import threading
+import tkinter as tk
+from tkinter import ttk
+from multiprocessing import Queue
+from queue import Empty
+
+#---------------------------------------------------------------------------------
+# 	  					# THREADING FOR PROGRESS BAR #
+#---------------------------------------------------------------------------------
+class ReportProgress(tk.Tk):
+	def __init__(self, task_length):
+		tk.Tk.__init__(self)
+		self.queue_ = Queue()
+		self.scrollbar = tk.Scrollbar(self, orient='vertical')
+		self.scrollbar.pack(side='right', fill='y')
+		self.listbox = tk.Listbox(self,width=50, height=5, yscrollcommand=self.scrollbar.set)
+		self.listbox.pack(padx=10,pady=10)
+
+		self.progressbar = ttk.Progressbar(self, orient='horizontal', length=bar_length, mode='determinate')
+		self.button = tk.Button(self, text='Started Processing..', command=self.exit)
+		self.progressbar.pack(padx=10,pady=10)
+		self.button.pack(padx=10,pady=10)
+
+		def launch(self, task_name):
+			self.button.config(state='disabled')
+
+			if task_name == 'glycogens_neareste_neighbors':
+				self.thread = Threaded_work1(self.queue_)
+			elif task_name == '':
+				self.thread = Threaded_work2(self.queue_)
+
+			self.thread.start()
+			self.status_check()
+
+		def exit(self):
+			self.destroy()
+		def status_check(self):
+			self.reportQ()
+			if self.thread.is_alive():
+				self.after(100, self.status_check)
+			else:
+				self.button.config(state='active', text='FINISHED', command=self.exit)
+
+		def reportQ(self):
+			while self.queue_.qsize():
+				try:
+					msg = self.queue_.get(0)
+					self.listbox.insert('end', msg)
+					self.progressbar.step(5)
+				except queue.Empty():
+					pass
+
+
+
+
+
+
+
+
+
 #---------------------------------------------------------------------------------
 # 	  					# INFO TEXTS #
 #---------------------------------------------------------------------------------
