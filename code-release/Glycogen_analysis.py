@@ -48,12 +48,13 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 from multiprocessing import Queue
-from queue import Empty
+from queue import*
 
 #---------------------------------------------------------------------------------
 # 	  					# THREADING FOR PROGRESS BAR #
 #---------------------------------------------------------------------------------
 class ReportProgress(tk.Tk):
+
 	def __init__(self, task_length):
 		tk.Tk.__init__(self)
 		self.queue_ = Queue()
@@ -62,48 +63,88 @@ class ReportProgress(tk.Tk):
 		self.listbox = tk.Listbox(self,width=50, height=5, yscrollcommand=self.scrollbar.set)
 		self.listbox.pack(padx=10,pady=10)
 
-		self.progressbar = ttk.Progressbar(self, orient='horizontal', length=bar_length, mode='determinate')
+		self.progressbar = ttk.Progressbar(self, orient='horizontal', length=task_length, mode='determinate')
 		self.button = tk.Button(self, text='Started Processing..', command=self.exit)
 		self.progressbar.pack(padx=10,pady=10)
 		self.button.pack(padx=10,pady=10)
 
-		def launch(self, task_name):
-			self.button.config(state='disabled')
+	def launch(self, task_name):
+		self.button.config(state='disabled')
 
-			if task_name == 'glycogens_neareste_neighbors':
-				self.thread = Threaded_work1(self.queue_)
-			elif task_name == '':
-				self.thread = Threaded_work2(self.queue_)
+		if task_name == 'glycogens_neareste_neighbors':
+			self.thread = Threaded_work1(self.queue_)
+		elif task_name == '':
+			self.thread = Threaded_work2(self.queue_)
 
-			self.thread.start()
-			self.status_check()
+		self.thread.start()# splitting to two here, one runs the thread, one checks on its status
+		self.status_check()
+		self.queue_.task_done()
+		#self.thread.join()
 
-		def exit(self):
-			self.destroy()
-		def status_check(self):
-			self.reportQ()
-			if self.thread.is_alive():
-				self.after(100, self.status_check)
-			else:
-				self.button.config(state='active', text='FINISHED', command=self.exit)
+	def exit(self):
+		self.destroy()
 
-		def reportQ(self):
-			while self.queue_.qsize():
-				try:
-					msg = self.queue_.get(0)
-					self.listbox.insert('end', msg)
-					self.progressbar.step(5)
-				except queue.Empty():
-					pass
+	def status_check(self):
+		self.reportQ()
+		if self.thread.is_alive():
+			self.after(100, self.status_check)# self.status_check() will pass the result of the function. self.status_check will pass the function, value in Millisecond
+		else:
+			self.button.config(state='active', text='FINISHED', command=self.exit)
+			#self.queue_.task_done()
+			#self.thread.join()
+	def reportQ(self):
+		while self.queue_.qsize():
+			try:
+				msg = self.queue_.get(0) #FIFO, only we want the last in.
+				self.listbox.insert('end', msg)
+				self.progressbar.step(20)
+			except queue.Empty:
+				pass
 
+class Threaded_work1(threading.Thread):
+	def __init__(self,queue):
+		threading.Thread.__init__(self)
+		self.queue_ = queue
+	def run(self):
+		#msg="getting vertices for: Glycogens"
+		#self.queue_.put(msg)
+		#bpy.types.Scene.glycogen_attrib_np, bpy.types.Scene.glycogen_verts_np = getVertices("Glycogen", "Center Vertices")
+		#print('bpy.types.Scene.glycogen_verts_np',bpy.types.Scene.glycogen_verts_np)
 
+		patterns = []
+		if "bouton" in bpy.context.scene.data_names:
+			patterns.append('bouton')
+		elif "Bouton" in bpy.context.scene.data_names:
+			patterns.append('Bouton')
+		if "spine" in bpy.context.scene.data_names:
+			patterns.append('spine')
+		elif "Spine" in bpy.context.scene.data_names:
+			patterns.append('Spine')
 
+		firstTime = True
 
-
-
-
-
-
+		for patt in patterns:
+			msg="getting vertices for: %s" % patt
+			self.queue_.put(msg)
+		
+			temp_attrib_np, temp_verts_np = getVertices(patt, "All Vertices")
+			if temp_attrib_np.size:			
+					if firstTime:
+						bpy.types.Scene.neur_obj_verts_np = temp_verts_np
+						bpy.types.Scene.neur_obj_attrib_np = temp_attrib_np
+						firstTime = False
+						#to set the big array to same dimensions of concatinated arrays
+					else:
+						bpy.types.Scene.neur_obj_attrib_np =np.concatenate((bpy.types.Scene.neur_obj_attrib_np, temp_attrib_np),axis=0)
+						bpy.types.Scene.neur_obj_verts_np = np.concatenate((bpy.types.Scene.neur_obj_verts_np, temp_verts_np),axis=0)
+		
+		msg="getting closests distance"
+		self.queue_.put(msg)
+		print(bpy.types.Scene.neur_obj_attrib_np)
+		if bpy.types.Scene.neur_obj_attrib_np.size:
+			bpy.types.Scene.data_glyc_distances = get_closest_distance(bpy.types.Scene.glycogen_verts_np, bpy.types.Scene.neur_obj_verts_np)
+			bpy.types.Scene.data_glyc_distances_occur = occurences()
+			visualization()
 #---------------------------------------------------------------------------------
 # 	  					# INFO TEXTS #
 #---------------------------------------------------------------------------------
@@ -445,12 +486,14 @@ def get_closest_distance(first_verts, second_verts):
 	#second_verts = np.asarray(bpy.types.Scene.neur_obj_verts_np)
 	first_verts = np.asarray(first_verts)
 	second_verts = np.asarray(second_verts)
-	
 	#scipy cKDTree algorithm
 	mytree = cKDTree(second_verts)
 	dist, indexes = mytree.query(first_verts)
 	dist= np.asarray(dist)
 	indexes = np.asarray(indexes)
+	print('dist:',dist)
+	print('indexes:',indexes)
+	
 	a = np.vstack(dist)
 	b = np.vstack(indexes)
 	c = np.hstack((b,a))
@@ -460,15 +503,133 @@ def get_closest_distance(first_verts, second_verts):
 	
 	return closests_points_info
 
+def visualization():
+	bpy.types.Scene.data_glyc_neighbours = []
+	bpy.types.Scene.data_noOfGlyc = []
+	bpy.types.Scene.data_glyc_to_neighb_dist = []
+	enum1 = [] #neural strcure (dropdown)
+	enum2 = [] #associated granules (dropdown)
+
+	''' we need proper data strcuture for: neural strcure (dropdown), associated granules (dropdown),
+		NoGranules (Textbox), distance (Textbox)'''
+	for neural_obj_name, noOfGlycogens in bpy.types.Scene.data_glyc_distances_occur:
+		bpy.types.Scene.data_glyc_neighbours.append(neural_obj_name)
+		bpy.types.Scene.data_noOfGlyc.append(noOfGlycogens)
+		#1- neural neighbors (dropdown)
+	for _index, enumval in enumerate(bpy.types.Scene.data_glyc_neighbours):
+		enum1.append((str(_index), enumval, "")) ##the value in the middle will show in the UI
+	bpy.types.Scene.prop_glyc_neighbours = EnumProperty(name="Neibouring Objects", items=enum1, 
+		update=update_glyc_neighbours_dropdown)
+	#2- associated granules (dropdown)
+	# initilised while update - for now we will get the current value (1st row according to )
+	for _index, enumval in enumerate(bpy.types.Scene.neuro_glyList_dict[
+		bpy.types.Scene.data_glyc_neighbours[
+		int(bpy.context.scene.prop_glyc_neighbours)]]):
+		enum2.append((enumval,enumval, ""))
+	#print("associated granules in visualizing_measurements:", enum2)
+	bpy.types.Scene.prop_associated_glyco = EnumProperty(name='Associated Granules:', items=enum2, 
+		update=update_associated_granules_dropdown)
+
+	#3- Total Granules# (textbox)
+	bpy.types.Scene.prop_total_granules = StringProperty(name='Total Granules:',
+		default=str(bpy.types.Scene.data_noOfGlyc[int(bpy.context.scene.prop_glyc_neighbours)]),
+		update=updateFun3)
+	
+	#4- Distance (textbox)
+	for glyIndx, neuroIndx, dist in bpy.types.Scene.data_glyc_distances:
+		bpy.types.Scene.data_glyc_to_neighb_dist.append(
+			[bpy.types.Scene.glycogen_attrib_np[glyIndx,0],dist]
+			)
+	for glyname, dist in bpy.types.Scene.data_glyc_to_neighb_dist:
+		if glyname == bpy.context.scene.prop_associated_glyco:
+			bpy.types.Scene.prop_glyc_to_neighb_dist = StringProperty(name='Distance:',
+				default=str(dist),
+				update=updateFun4)
+	#-5 UIList populate
+	countIndx = 0
+	for neural_obj_name, noOfGlycogens in bpy.types.Scene.data_glyc_distances_occur:
+		my_item = bpy.context.scene.UIList_glyc_neighb.add()
+		my_item.li_glyc_neighbours=neural_obj_name
+		my_item.li_total_granules = str(noOfGlycogens)
+		countIndx+=1
+		my_item.li_row_number = str(countIndx)
+
+def occurences():
+	objects_names=[]
+	#for the glycogen occurance output UIdropdownList:
+	gly_names=[] 
+	bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = {} #used for data export
+	bpy.types.Scene.neuro_glyList_dict = {} #used for UI display (a group by done on 'sorted')
+	dict_temp = {}
+	
+	closest_points_np = (np.array(bpy.types.Scene.data_glyc_distances)).astype(int)
+	
+	for k in range(0, len(closest_points_np)):
+		objects_names.append(" ".join
+			((
+				bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],0],
+				bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],1]
+			))
+			)#join (object name, parent) with a " " between them
+		gly_names.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],0])
+	#end loop
+	'''now we can create dictionary from obj&gly names:'''
+	for i in range(0,len(gly_names)):
+		#the below method in populating dictionaries will perform (itemfreq) on objects names so that it will not duplicate keys (robust?)
+		dict_temp[gly_names[i]] = objects_names[i]
+
+	#sort the dictionary:b = OrderedDict(sorted(a.items()))
+	bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = OrderedDict(sorted(dict_temp.items(), key=lambda val: val[1])) #checked
+
+	#now we need to group glycogens in a list per neuro
+	#===============================================
+	#Populating bpy.types.Scene.neuro_glyList_dict
+	templist1 = []
+	current_neuro = list(bpy.types.Scene.neuro_gly_glyFreq_dic_sorted.values())[0]
+	for glyname, objname in bpy.types.Scene.neuro_gly_glyFreq_dic_sorted.items(): # .item refers to a pair(key,value), switching keys to values and values to keys
+		if objname == str(current_neuro):
+			templist1.append(glyname)
+		else:
+			bpy.types.Scene.neuro_glyList_dict[current_neuro]=templist1
+			current_neuro = objname
+			templist1 = []
+			templist1.append(glyname)
+	bpy.types.Scene.neuro_glyList_dict[current_neuro]=templist1 #store last list, as loop finishes before it gets to store it in'else'
+	#===============================================
+
+	#now we count instances of glycogens per neuro object closests to it
+	templist=[]
+	countInstances = Counter(objects_names) #countInstances is a dictionary
+	#{'objName parent': itemfreq()...}
+	for neur_obj_name, noOfGlycogens in countInstances.items():
+		templist.append([neur_obj_name,noOfGlycogens])
+
+	return templist
 #---------------------------------------------------------------------------------
 # 	  								GLYCOGEN
 #---------------------------------------------------------------------------------
 class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 	bl_idname= "objects.glycogens_neareste_neighbors"
 	bl_label = ""
+
+	def initialise(self):		
+		bpy.types.Scene.data_glyc_distances = []
+		bpy.types.Scene.data_glyc_distances_occur = []
+		bpy.types.Scene.li_associated_glyco = EnumProperty(name='Associated Granules:',items=[])
+		bpy.types.Scene.li_glyc_to_neighb_dist = StringProperty(name='Distance:',default="")
 	
 	def invoke(self,context,event):
 		self.initialise()
+		print("getting vertices for: Glycogens")
+		bpy.types.Scene.glycogen_attrib_np, bpy.types.Scene.glycogen_verts_np = getVertices("Glycogen", "Center Vertices")
+		print('bpy.types.Scene.glycogen_verts_np',bpy.types.Scene.glycogen_verts_np)
+		mypbar = ReportProgress(100)
+		mypbar.launch('glycogens_neareste_neighbors')	
+		mypbar.mainloop()
+
+		
+		"""#threading from here 
+		print("getting vertices for: Glycogens")
 		bpy.types.Scene.glycogen_attrib_np, bpy.types.Scene.glycogen_verts_np = getVertices("Glycogen", "Center Vertices")
 
 		patterns = []
@@ -495,10 +656,13 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 					else:
 						bpy.types.Scene.neur_obj_attrib_np =np.concatenate((bpy.types.Scene.neur_obj_attrib_np, temp_attrib_np),axis=0)
 						bpy.types.Scene.neur_obj_verts_np = np.concatenate((bpy.types.Scene.neur_obj_verts_np, temp_verts_np),axis=0)
+		print(bpy.types.Scene.neur_obj_attrib_np)
 
 		if bpy.types.Scene.neur_obj_attrib_np.size:
 			bpy.types.Scene.data_glyc_distances = get_closest_distance(bpy.types.Scene.glycogen_verts_np, bpy.types.Scene.neur_obj_verts_np)
-			bpy.types.Scene.data_glyc_distances_occur = self.occurences()
+			bpy.types.Scene.data_glyc_distances_occur = occurences()
+
+		# to here """
 
 		# print
 		#for i in range(0, len(bpy.types.Scene.data_glyc_distances)):
@@ -513,121 +677,16 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		#		gdistance = [dist for gname, dist in bpy.types.Scene.data_glyc_distances if gname == glyName]
 		#		if gdistance:
 		#			print(neurObj, len(glyList), glyName, gdistance, gdistance[0])
-		self.visualization()
+		
+		#visualization()
 		return{"FINISHED"}
 
-	def visualization(self):
-		bpy.types.Scene.data_glyc_neighbours = []
-		bpy.types.Scene.data_noOfGlyc = []
-		bpy.types.Scene.data_glyc_to_neighb_dist = []
-		enum1 = [] #neural strcure (dropdown)
-		enum2 = [] #associated granules (dropdown)
 
-		''' we need proper data strcuture for: neural strcure (dropdown), associated granules (dropdown),
- 		NoGranules (Textbox), distance (Textbox)'''
-		for neural_obj_name, noOfGlycogens in bpy.types.Scene.data_glyc_distances_occur:
-			bpy.types.Scene.data_glyc_neighbours.append(neural_obj_name)
-			bpy.types.Scene.data_noOfGlyc.append(noOfGlycogens)
-			#1- neural neighbors (dropdown)
-		for _index, enumval in enumerate(bpy.types.Scene.data_glyc_neighbours):
-			enum1.append((str(_index), enumval, "")) ##the value in the middle will show in the UI
-		bpy.types.Scene.prop_glyc_neighbours = EnumProperty(name="Neibouring Objects", items=enum1, 
-			update=update_glyc_neighbours_dropdown)
-		#2- associated granules (dropdown)
-		# initilised while update - for now we will get the current value (1st row according to )
-		for _index, enumval in enumerate(bpy.types.Scene.neuro_glyList_dict[
-			bpy.types.Scene.data_glyc_neighbours[
-			int(bpy.context.scene.prop_glyc_neighbours)]]):
-			enum2.append((enumval,enumval, ""))
-		#print("associated granules in visualizing_measurements:", enum2)
-		bpy.types.Scene.prop_associated_glyco = EnumProperty(name='Associated Granules:', items=enum2, 
-			update=update_associated_granules_dropdown)
 
-		#3- Total Granules# (textbox)
-		bpy.types.Scene.prop_total_granules = StringProperty(name='Total Granules:',
-			default=str(bpy.types.Scene.data_noOfGlyc[int(bpy.context.scene.prop_glyc_neighbours)]),
-			update=updateFun3)
 		
-		#4- Distance (textbox)
-		for glyIndx, neuroIndx, dist in bpy.types.Scene.data_glyc_distances:
-			bpy.types.Scene.data_glyc_to_neighb_dist.append(
-				[bpy.types.Scene.glycogen_attrib_np[glyIndx,0],dist]
-				)
-		for glyname, dist in bpy.types.Scene.data_glyc_to_neighb_dist:
-			if glyname == bpy.context.scene.prop_associated_glyco:
-				bpy.types.Scene.prop_glyc_to_neighb_dist = StringProperty(name='Distance:',
-					default=str(dist),
-					update=updateFun4)
-		#-5 UIList populate
-		countIndx = 0
-		for neural_obj_name, noOfGlycogens in bpy.types.Scene.data_glyc_distances_occur:
-			my_item = bpy.context.scene.UIList_glyc_neighb.add()
-			my_item.li_glyc_neighbours=neural_obj_name
-			my_item.li_total_granules = str(noOfGlycogens)
-			countIndx+=1
-			my_item.li_row_number = str(countIndx)
-
-	def initialise(self):
-		
-		bpy.types.Scene.data_glyc_distances = []
-		bpy.types.Scene.data_glyc_distances_occur = []
-		bpy.types.Scene.li_associated_glyco = EnumProperty(name='Associated Granules:',items=[])
-		bpy.types.Scene.li_glyc_to_neighb_dist = StringProperty(name='Distance:',default="")
-
-	def occurences(self):
-		objects_names=[]
-		#for the glycogen occurance output UIdropdownList:
-		gly_names=[] 
-		bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = {} #used for data export
-		bpy.types.Scene.neuro_glyList_dict = {} #used for UI display (a group by done on 'sorted')
-		dict_temp = {}
-		
-		closest_points_np = (np.array(bpy.types.Scene.data_glyc_distances)).astype(int)
-		
-		for k in range(0, len(closest_points_np)):
-			objects_names.append(" ".join
-				((
-					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],0],
-					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],1]
-				))
-				)#join (object name, parent) with a " " between them
-			gly_names.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],0])
-		#end loop
-		
-		'''now we can create dictionary from obj&gly names:'''
-		for i in range(0,len(gly_names)):
-			#the below method in populating dictionaries will perform (itemfreq) on objects names so that it will not duplicate keys (robust?)
-			dict_temp[gly_names[i]] = objects_names[i]
-
-		#sort the dictionary:b = OrderedDict(sorted(a.items()))
-		bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = OrderedDict(sorted(dict_temp.items(), key=lambda val: val[1])) #checked
-
-		#now we need to group glycogens in a list per neuro
-		#===============================================
-		#Populating bpy.types.Scene.neuro_glyList_dict
-		templist1 = []
-		current_neuro = list(bpy.types.Scene.neuro_gly_glyFreq_dic_sorted.values())[0]
-		for glyname, objname in bpy.types.Scene.neuro_gly_glyFreq_dic_sorted.items(): # .item refers to a pair(key,value), switching keys to values and values to keys
-			if objname == str(current_neuro):
-				templist1.append(glyname)
-			else:
-				bpy.types.Scene.neuro_glyList_dict[current_neuro]=templist1
-				current_neuro = objname
-				templist1 = []
-				templist1.append(glyname)
-		bpy.types.Scene.neuro_glyList_dict[current_neuro]=templist1 #store last list, as loop finishes before it gets to store it in'else'
-		#===============================================
-
-		#now we count instances of glycogens per neuro object closests to it
-		templist=[]
-		countInstances = Counter(objects_names) #countInstances is a dictionary
-		#{'objName parent': itemfreq()...}
-		for neur_obj_name, noOfGlycogens in countInstances.items():
-			templist.append([neur_obj_name,noOfGlycogens])
-
-		return templist
-
-#+++++++ UIList Gadget ++++++++
+#--------------------------------------------------------------------------------
+							#+++++++ UIList Gadget ++++++++
+#--------------------------------------------------------------------------------		
 # Custom properties, will be saved with .blend file.
 class PG_List_Entry(bpy.types.PropertyGroup):
 	li_glyc_neighbours = StringProperty(name="Object Name")
