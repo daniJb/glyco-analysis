@@ -50,6 +50,7 @@ from tkinter import ttk
 from multiprocessing import Queue
 from queue import*
 
+
 #---------------------------------------------------------------------------------
 # 	  					# THREADING FOR PROGRESS BAR #
 #---------------------------------------------------------------------------------
@@ -57,7 +58,8 @@ class ReportProgress(tk.Tk):
 
 	def __init__(self, task_length):
 		tk.Tk.__init__(self)
-		self.queue_ = Queue()
+		#self.queue_ = Queue()
+		bpy.types.Scene.queue_ = Queue()
 		self.scrollbar = tk.Scrollbar(self, orient='vertical')
 		self.scrollbar.pack(side='right', fill='y')
 		self.listbox = tk.Listbox(self,width=50, height=5, yscrollcommand=self.scrollbar.set)
@@ -72,36 +74,80 @@ class ReportProgress(tk.Tk):
 		self.button.config(state='disabled')
 
 		if task_name == 'glycogens_neareste_neighbors':
-			self.thread = Threaded_work1(self.queue_)
-		elif task_name == '':
-			self.thread = Threaded_work2(self.queue_)
+			bpy.types.Scene.Thread = threading.Thread(target=threaded_work)#, args=(self.queue_,))
+			#threaded_work(self.queue_)
+			#bpy.types.Scene.Thread = Threaded_work1(self.queue_)
+		#elif task_name == '':
+		#	self.thread = Threaded_work2(self.queue_)
 
-		self.thread.start()# splitting to two here, one runs the thread, one checks on its status
+		#self.thread.start()# splitting to two here, one runs the thread, one checks on its status
+		bpy.types.Scene.Thread.start()
 		self.status_check()
-		self.queue_.task_done()
-		#self.thread.join()
+		#self.queue_.task_done()
+		#self.thread.join() #this will cause tk window not to show up
 
 	def exit(self):
 		self.destroy()
 
 	def status_check(self):
 		self.reportQ()
-		if self.thread.is_alive():
+		#if self.thread.is_alive():
+		if bpy.types.Scene.Thread.is_alive():
+		
 			self.after(100, self.status_check)# self.status_check() will pass the result of the function. self.status_check will pass the function, value in Millisecond
 		else:
 			self.button.config(state='active', text='FINISHED', command=self.exit)
 			#self.queue_.task_done()
 			#self.thread.join()
 	def reportQ(self):
-		while self.queue_.qsize():
+		#while self.queue_.qsize():
+		while bpy.types.Scene.queue_.qsize():
 			try:
-				msg = self.queue_.get(0) #FIFO, only we want the last in.
+				msg = bpy.types.Scene.queue_.get(0) #self.queue_.get(0) #FIFO, only we want the last in.
 				self.listbox.insert('end', msg)
 				self.progressbar.step(20)
 			except queue.Empty:
 				pass
 
-class Threaded_work1(threading.Thread):
+def threaded_work():
+	patterns = []
+	if "bouton" in bpy.context.scene.data_names:
+		patterns.append('bouton')
+	elif "Bouton" in bpy.context.scene.data_names:
+		patterns.append('Bouton')
+	if "spine" in bpy.context.scene.data_names:
+		patterns.append('spine')
+	elif "Spine" in bpy.context.scene.data_names:
+		patterns.append('Spine')
+
+	firstTime = True
+
+	for patt in patterns:
+		msg="getting vertices for: %s" % patt
+		bpy.types.Scene.queue_.put(msg)
+	
+		temp_attrib_np, temp_verts_np = getVertices(patt, "All Vertices")
+		if temp_attrib_np.size:			
+				if firstTime:
+					bpy.types.Scene.neur_obj_verts_np = temp_verts_np
+					bpy.types.Scene.neur_obj_attrib_np = temp_attrib_np
+					firstTime = False
+					#to set the big array to same dimensions of concatinated arrays
+				else:
+					bpy.types.Scene.neur_obj_attrib_np =np.concatenate((bpy.types.Scene.neur_obj_attrib_np, temp_attrib_np),axis=0)
+					bpy.types.Scene.neur_obj_verts_np = np.concatenate((bpy.types.Scene.neur_obj_verts_np, temp_verts_np),axis=0)
+	
+	msg="getting closests distance"
+	bpy.types.Scene.queue_.put(msg)
+	print(bpy.types.Scene.neur_obj_attrib_np)
+	if bpy.types.Scene.neur_obj_attrib_np.size:
+		bpy.types.Scene.data_glyc_distances = get_closest_distance(bpy.types.Scene.glycogen_verts_np, bpy.types.Scene.neur_obj_verts_np)
+		bpy.types.Scene.data_glyc_distances_occur = occurences()
+		visualization()
+
+
+
+class Threaded_work1(threading.Thread): #custom classes dont work well with blender, as instances dont seem to go away unless blender restarts
 	def __init__(self,queue):
 		threading.Thread.__init__(self)
 		self.queue_ = queue
@@ -491,8 +537,8 @@ def get_closest_distance(first_verts, second_verts):
 	dist, indexes = mytree.query(first_verts)
 	dist= np.asarray(dist)
 	indexes = np.asarray(indexes)
-	print('dist:',dist)
-	print('indexes:',indexes)
+	#print('dist:',dist)
+	#print('indexes:',indexes)
 	
 	a = np.vstack(dist)
 	b = np.vstack(indexes)
@@ -622,11 +668,14 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		self.initialise()
 		print("getting vertices for: Glycogens")
 		bpy.types.Scene.glycogen_attrib_np, bpy.types.Scene.glycogen_verts_np = getVertices("Glycogen", "Center Vertices")
-		print('bpy.types.Scene.glycogen_verts_np',bpy.types.Scene.glycogen_verts_np)
+		#print('bpy.types.Scene.glycogen_verts_np',bpy.types.Scene.glycogen_verts_np)
 		mypbar = ReportProgress(100)
-		mypbar.launch('glycogens_neareste_neighbors')	
+		mypbar.launch('glycogens_neareste_neighbors')
 		mypbar.mainloop()
-
+		bpy.types.Scene.queue_.task_done()
+		bpy.types.Scene.Thread.join()	
+		
+		#mypbar.queue_.task_done()
 		
 		"""#threading from here 
 		print("getting vertices for: Glycogens")
@@ -679,11 +728,8 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		#			print(neurObj, len(glyList), glyName, gdistance, gdistance[0])
 		
 		#visualization()
-		return{"FINISHED"}
+		return{"RUNNING_MODAL"}
 
-
-
-		
 #--------------------------------------------------------------------------------
 							#+++++++ UIList Gadget ++++++++
 #--------------------------------------------------------------------------------		
@@ -1456,6 +1502,8 @@ def register():
 	bpy.utils.register_module(__name__)
 	bpy.types.Scene.UIList_glyc_neighb = CollectionProperty(type= PG_List_Entry)#name of property group class
 	bpy.types.Scene.UIList_glyc_neighb_indx = IntProperty(name="index for UIList_glyc_neighb", default=0)
+	bpy.types.Scene.Thread = None
+	bpy.types.Scene.queue_ = None
 	
 	#public variables
 	bpy.types.Scene.data_names = None 
@@ -1504,6 +1552,11 @@ def register():
 	
 def unregister():
 	bpy.utils.unregister_module(__name__)
+	#if bpy.types.Scene.Thread:
+	#	bpy.types.Scene.Thread.join()
+	#if bpy.types.Scene.queue_:
+	#	bpy.types.Scene.queue_.task_done()
+
 	#free memory
 	if bpy.types.Scene.data_names: 
 		del bpy.types.Scene.data_names
