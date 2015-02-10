@@ -356,11 +356,14 @@ def getVertices(pattern,coords_type):
         if ob.type !='MESH':
             continue
         if pattern in specials:
-        	if not ob.name.find('surf') or not ob.name.find('surface'):
+        	match1 = re.search('.surf*', ob.name)# '*' 0 or more repetition
+        	print(match1) #prints None when no match
+        	if not match1:
         		print(pattern, ' ', ob.name)
         		continue
+        	#if not ob.name.find('surf') or not ob.name.find('surface'):
 
-        match = re.search(pattern+'*', ob.name)
+        match = re.search(pattern+'*', ob.name) # if pattern+'.', this wont take 'Glycogen' as '.' is 1 or more repetition
         if not match:
             ob.hide = True
             continue
@@ -387,12 +390,6 @@ def getVertices(pattern,coords_type):
     elif selected_objects and coords_type == "All Vertices":
         for ob in selected_objects:
             objs_attrib,objs_verts =glyc_toGlobal_coords(ob,objs_attrib,objs_verts)
-
-    #if objs_attrib:
-    	#print(objs_attrib)
-    #else:
-    #	print('nothin')
-
     
     return(np.array(objs_attrib),np.array(objs_verts))
 
@@ -431,14 +428,14 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		patterns = []
 		if "bouton" in bpy.context.scene.data_names:
 			patterns.append('bouton')
-		#elif "Bouton" in bpy.context.scene.data_names:
-		#	patterns.append('Bouton')
+		elif "Bouton" in bpy.context.scene.data_names:
+			patterns.append('Bouton')
 		if "spine" in bpy.context.scene.data_names:
 			patterns.append('spine')
-		#elif "Spine" in bpy.context.scene.data_names:
-		#	patterns.append('Spine')
-		#if 'buoton' in bpy.context.scene.data_names:
-		#	patterns.append('buoton')
+		elif "Spine" in bpy.context.scene.data_names:
+			patterns.append('Spine')
+		if 'buoton' in bpy.context.scene.data_names:
+			patterns.append('buoton')
 
 		firstTime = True
 
@@ -1179,7 +1176,7 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 			print("writing data of [glycogen to closests neighbors objects- distances]")
 			with open(the_name,'wt') as output:
 				writer = csv.writer(output, delimiter='\t')
-				writer.writerow(['Neural Object','No.Associated Glycogens','Glycogen Names','Distance','SA', 'Vol'])
+				writer.writerow(['Neural Object','No.Associated Glycogens','Glycogen Names','Distance','      SA', '     Vol'])
 
 				rowToWrite = []
 				for neurObj, glyList in bpy.types.Scene.neuro_glyList_dict.items():
@@ -1189,7 +1186,8 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 						if gdistance:
 							if writeOnce:
 								n = neurObj.rsplit(' ',1)
-								writer.writerow([neurObj, len(glyList), glyName, gdistance[0],bpy.data.objects[n[0]].SA, bpy.data.objects[n[0]].vol])# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
+								writer.writerow([neurObj, len(glyList), glyName, gdistance[0],bpy.data.objects[n[0]].SA, bpy.data.objects[n[0]].vol])
+								# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
 								writeOnce = False
 							else:
 								n = neurObj.rsplit(' ',1)
