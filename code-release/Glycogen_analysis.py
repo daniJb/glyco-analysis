@@ -42,13 +42,13 @@ import time
 
 import os
 from os.path import expanduser
-import time
 
 import threading
 import tkinter as tk
 from tkinter import ttk
 from multiprocessing import Queue
 from queue import*
+import time
 
 
 #---------------------------------------------------------------------------------
@@ -58,8 +58,8 @@ class ReportProgress(tk.Tk):
 
 	def __init__(self, task_length):
 		tk.Tk.__init__(self)
-		#self.queue_ = Queue()
-		bpy.types.Scene.queue_ = Queue()
+		self.queue_ = Queue()
+		#bpy.types.Scene.queue_ = Queue()
 		self.scrollbar = tk.Scrollbar(self, orient='vertical')
 		self.scrollbar.pack(side='right', fill='y')
 		self.listbox = tk.Listbox(self,width=50, height=5, yscrollcommand=self.scrollbar.set)
@@ -74,14 +74,14 @@ class ReportProgress(tk.Tk):
 		self.button.config(state='disabled')
 
 		if task_name == 'glycogens_neareste_neighbors':
-			bpy.types.Scene.Thread = threading.Thread(target=threaded_work)#, args=(self.queue_,))
+			#bpy.types.Scene.Thread = threading.Thread(target=threaded_work)#, args=(self.queue_,))
 			#threaded_work(self.queue_)
-			#bpy.types.Scene.Thread = Threaded_work1(self.queue_)
+			self.thread = Threaded_work1(self.queue_)
 		#elif task_name == '':
 		#	self.thread = Threaded_work2(self.queue_)
 
-		#self.thread.start()# splitting to two here, one runs the thread, one checks on its status
-		bpy.types.Scene.Thread.start()
+		self.thread.start()# splitting to two here, one runs the thread, one checks on its status
+		#bpy.types.Scene.Thread.start()
 		self.status_check()
 		#self.queue_.task_done()
 		#self.thread.join() #this will cause tk window not to show up
@@ -91,22 +91,31 @@ class ReportProgress(tk.Tk):
 
 	def status_check(self):
 		self.reportQ()
-		#if self.thread.is_alive():
-		if bpy.types.Scene.Thread.is_alive():
-		
+		if self.thread.is_alive():
+		#if bpy.types.Scene.Thread.is_alive():
 			self.after(100, self.status_check)# self.status_check() will pass the result of the function. self.status_check will pass the function, value in Millisecond
 		else:
+			#msg='Done!'
+			#bpy.types.Scene.queue_.put(msg)
+			#self.reportQ()
+
+			#bpy.types.Scene.queue_.task_done()
+			#bpy.types.Scene.Thread.join()
+			#self.destroy()
 			self.button.config(state='active', text='FINISHED', command=self.exit)
 			#self.queue_.task_done()
 			#self.thread.join()
 	def reportQ(self):
-		#while self.queue_.qsize():
-		while bpy.types.Scene.queue_.qsize():
+		from queue import Empty
+		while self.queue_.qsize():
+		#while bpy.types.Scene.queue_.qsize():
 			try:
-				msg = bpy.types.Scene.queue_.get(0) #self.queue_.get(0) #FIFO, only we want the last in.
+				#FIFO, only we want the last in.
+				msg=self.queue_.get(0)
+				#msg = bpy.types.Scene.queue_.get(0) # 
 				self.listbox.insert('end', msg)
 				self.progressbar.step(20)
-			except queue.Empty:
+			except queue.Empty():
 				pass
 
 def threaded_work():
@@ -186,11 +195,14 @@ class Threaded_work1(threading.Thread): #custom classes dont work well with blen
 		
 		msg="getting closests distance"
 		self.queue_.put(msg)
-		print(bpy.types.Scene.neur_obj_attrib_np)
+		#print(bpy.types.Scene.neur_obj_attrib_np)
 		if bpy.types.Scene.neur_obj_attrib_np.size:
 			bpy.types.Scene.data_glyc_distances = get_closest_distance(bpy.types.Scene.glycogen_verts_np, bpy.types.Scene.neur_obj_verts_np)
 			bpy.types.Scene.data_glyc_distances_occur = occurences()
 			visualization()
+			msg="All Done!"
+			self.queue_.put(msg)
+		
 #---------------------------------------------------------------------------------
 # 	  					# INFO TEXTS #
 #---------------------------------------------------------------------------------
@@ -672,8 +684,8 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		mypbar = ReportProgress(100)
 		mypbar.launch('glycogens_neareste_neighbors')
 		mypbar.mainloop()
-		bpy.types.Scene.queue_.task_done()
-		bpy.types.Scene.Thread.join()	
+		#bpy.types.Scene.queue_.task_done()
+		#bpy.types.Scene.Thread.join()	
 		
 		#mypbar.queue_.task_done()
 		
@@ -728,7 +740,7 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		#			print(neurObj, len(glyList), glyName, gdistance, gdistance[0])
 		
 		#visualization()
-		return{"RUNNING_MODAL"}
+		return{"FINISHED"}
 
 #--------------------------------------------------------------------------------
 							#+++++++ UIList Gadget ++++++++
@@ -1502,8 +1514,8 @@ def register():
 	bpy.utils.register_module(__name__)
 	bpy.types.Scene.UIList_glyc_neighb = CollectionProperty(type= PG_List_Entry)#name of property group class
 	bpy.types.Scene.UIList_glyc_neighb_indx = IntProperty(name="index for UIList_glyc_neighb", default=0)
-	bpy.types.Scene.Thread = None
-	bpy.types.Scene.queue_ = None
+	#bpy.types.Scene.Thread = None
+	#bpy.types.Scene.queue_ = None
 	
 	#public variables
 	bpy.types.Scene.data_names = None 
@@ -1552,10 +1564,12 @@ def register():
 	
 def unregister():
 	bpy.utils.unregister_module(__name__)
-	#if bpy.types.Scene.Thread:
-	#	bpy.types.Scene.Thread.join()
-	#if bpy.types.Scene.queue_:
-	#	bpy.types.Scene.queue_.task_done()
+	"""if bpy.types.Scene.Thread:
+		bpy.types.Scene.Thread.join()
+		del bpy.types.Scene.Thread
+	if bpy.types.Scene.queue_:
+		bpy.types.Scene.queue_.task_done()
+		del bpy.types.Scene.queue_"""
 
 	#free memory
 	if bpy.types.Scene.data_names: 
@@ -1653,3 +1667,6 @@ def unregister():
 	
 	
 	
+
+if __name__ == "__main__":
+    register()
