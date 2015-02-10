@@ -280,7 +280,7 @@ def func_unselect():
 def func_select(pattern):
 	selected_objects=[]
 	for ob in bpy.data.objects:
-		if ob.type != 'MESH' and ob.type != 'CURVE':
+		if ob.type != 'MESH' and ob.type != 'CURVE':#consider if ob.type == 'MESH':
 			continue
 		match = re.search(pattern+'*', ob.name)
 		if not match:
@@ -328,12 +328,14 @@ def glyc_toGlobal_coords(ob,objs_attrib,objs_verts):
     for v in ob.data.vertices:
         loc = v.co
         globalCoords = coord_matrix *loc
-        n = ob.name.rsplit('_',1)
+        #n = ob.name.rsplit('_',1)
         if ob.parent is None:
-            objs_attrib.append([n[0], "None"])
+            #objs_attrib.append([n[0], "None"])
+            objs_attrib.append([ob.name, "None"])
             objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
         else:
-            objs_attrib.append([n[0],ob.parent.name])
+            #objs_attrib.append([n[0],ob.parent.name])
+            objs_attrib.append([ob.name,ob.parent.name])
             objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
     return(objs_attrib,objs_verts)
 
@@ -346,10 +348,18 @@ def getVertices(pattern,coords_type):
     objs_verts = []
     objs_attrib_matrix = []
     objs_verts_matrix = []
+    listofStrings = ['surf', 'surface']
+    specials = ['bouton','buoton','spine']
+	#""" locations are taken before object name was stripped. so calculations are ok"""    
 
     for ob in bpy.data.objects:
         if ob.type !='MESH':
             continue
+        if pattern in specials:
+        	if not ob.name.find('surf') or not ob.name.find('surface'):
+        		print(pattern, ' ', ob.name)
+        		continue
+
         match = re.search(pattern+'*', ob.name)
         if not match:
             ob.hide = True
@@ -364,17 +374,25 @@ def getVertices(pattern,coords_type):
         for ob in selected_objects:
         	#if ob.name == 'Glycogen': 
             #    continue
-            n = ob.name.rsplit('_',1)
+            #n = ob.name.rsplit('_',1) Should be done at the export only!
             if ob.parent is None:
-                objs_attrib.append([n[0],"None"])
+                #objs_attrib.append([n[0],"None"])
+                objs_attrib.append([ob.name,"None"])
                 objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
             else:
-                objs_attrib.append([n[0],ob.parent.name])
+                #objs_attrib.append([n[0],ob.parent.name])
+                objs_attrib.append([ob.name,ob.parent.name])
                 objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
 
     elif selected_objects and coords_type == "All Vertices":
         for ob in selected_objects:
             objs_attrib,objs_verts =glyc_toGlobal_coords(ob,objs_attrib,objs_verts)
+
+    #if objs_attrib:
+    	#print(objs_attrib)
+    #else:
+    #	print('nothin')
+
     
     return(np.array(objs_attrib),np.array(objs_verts))
 
@@ -413,12 +431,14 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		patterns = []
 		if "bouton" in bpy.context.scene.data_names:
 			patterns.append('bouton')
-		elif "Bouton" in bpy.context.scene.data_names:
-			patterns.append('Bouton')
+		#elif "Bouton" in bpy.context.scene.data_names:
+		#	patterns.append('Bouton')
 		if "spine" in bpy.context.scene.data_names:
 			patterns.append('spine')
-		elif "Spine" in bpy.context.scene.data_names:
-			patterns.append('Spine')
+		#elif "Spine" in bpy.context.scene.data_names:
+		#	patterns.append('Spine')
+		#if 'buoton' in bpy.context.scene.data_names:
+		#	patterns.append('buoton')
 
 		firstTime = True
 
@@ -1149,16 +1169,17 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 			print("writing data of [clusters centroids to spine-bouton centroids] distances")
 			with open(the_name,'wt') as output:
 				writer = csv.writer(output, delimiter='\t')
-				writer.writerow(['CId','#granules','ObjectName','ObjectParent', 'Distance'])
+				writer.writerow(['CId','#granules','ObjectName','ObjectParent', 'Distance', 'SA', 'Vol'])
 				rowToWrite = []
 				for CId, CCentroid,ObjectName,ObjectParent, Distance in bpy.types.Scene.data_clusters_distances:
-					writer.writerow([CId, CCentroid,ObjectName,ObjectParent, Distance])
+					writer.writerow([CId, CCentroid,ObjectName,ObjectParent, Distance,
+						bpy.data.objects[ObjectName].SA, bpy.data.objects[ObjectName].vol])
 		
 		elif bpy.context.scene.prop_bool_glycogen == True:
 			print("writing data of [glycogen to closests neighbors objects- distances]")
 			with open(the_name,'wt') as output:
 				writer = csv.writer(output, delimiter='\t')
-				writer.writerow(['Neural Object','No.Associated Glycogens','Glycogen Names','Distance'])
+				writer.writerow(['Neural Object','No.Associated Glycogens','Glycogen Names','Distance','SA', 'Vol'])
 
 				rowToWrite = []
 				for neurObj, glyList in bpy.types.Scene.neuro_glyList_dict.items():
@@ -1167,10 +1188,12 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 						gdistance = [dist for gname, dist in bpy.types.Scene.data_glyc_to_neighb_dist if gname == glyName]
 						if gdistance:
 							if writeOnce:
-								writer.writerow([neurObj, len(glyList), glyName, gdistance[0]])# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
+								n = neurObj.rsplit(' ',1)
+								writer.writerow([neurObj, len(glyList), glyName, gdistance[0],bpy.data.objects[n[0]].SA, bpy.data.objects[n[0]].vol])# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
 								writeOnce = False
 							else:
-								writer.writerow([ neurObj, 0 , glyName, gdistance[0]])
+								n = neurObj.rsplit(' ',1)
+								writer.writerow([ neurObj, 0 , glyName, gdistance[0],bpy.data.objects[n[0]].SA, bpy.data.objects[n[0]].vol])
 		return{"FINISHED"}
 	def invoke(self,context,event):
 		#print("bpy.context.scene.prop_bool_clusters",bpy.context.scene.prop_bool_clusters)
