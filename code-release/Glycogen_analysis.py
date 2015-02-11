@@ -128,6 +128,7 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 
 			bpy.types.Scene.data_glyc_distances_occur = []
 
+			bpy.types.Scene.data_solid_objects = []
 			bpy.types.Scene.glycogen_attrib_np = np.array([])
 			bpy.types.Scene.glycogen_verts_np = np.array([])
 			bpy.types.Scene.neur_obj_verts_np = np.array([])
@@ -357,9 +358,9 @@ def getVertices(pattern,coords_type):
             continue
         if pattern in specials:
         	match1 = re.search('.surf*', ob.name)# '*' 0 or more repetition
-        	print(match1) #prints None when no match
+        	#print(match1) #prints None when no match
         	if not match1:
-        		print(pattern, ' ', ob.name)
+        		#print(pattern, ' ', ob.name)
         		continue
         	#if not ob.name.find('surf') or not ob.name.find('surface'):
 
@@ -390,7 +391,13 @@ def getVertices(pattern,coords_type):
     elif selected_objects and coords_type == "All Vertices":
         for ob in selected_objects:
             objs_attrib,objs_verts =glyc_toGlobal_coords(ob,objs_attrib,objs_verts)
-    
+
+    if pattern in specials:
+    	print('obj_attrib aka surf length:',len(objs_attrib))
+    	bpy.types.Scene.data_solid_objects=get_solid_objects(objs_attrib)
+    	print('obj_attrib for solids length:',len(bpy.types.Scene.data_solid_objects))
+    	#print(bpy.types.Scene.data_solid_objects)
+
     return(np.array(objs_attrib),np.array(objs_verts))
 
 def get_closest_distance(first_verts, second_verts):
@@ -414,6 +421,37 @@ def get_closest_distance(first_verts, second_verts):
 	
 	return closests_points_info
 
+def get_solid_objects(childWparentList):
+	list_result = []
+	printout=[]
+	found = False
+	for child, parent in childWparentList:
+		found = False
+		n = child.rsplit('_',1)#take the frist syllabes. e.g., bouton1_surf.059. we take bouton1_ only
+		
+		for this_child in bpy.data.objects[parent].children:
+			match=re.search(n[0]+'.solid*'| n[0]+'.volu*', this_child.name)# '*' 0 or more repetition
+			if match:
+				#print('this_child, parent',this_child.name, parent)
+				list_result.append([this_child.name, parent])
+				found = True
+				break
+
+		
+		if not found:
+			printout.append(parent)
+	
+	print4check(printout)
+	return list_result
+
+def print4check(lista):
+	templist=[]
+	countInstances = Counter(lista) #countInstances is a dictionary
+	#{'listItem': itemfreq()...}
+	for neur_obj_name, instances in countInstances.items():
+		templist.append([neur_obj_name,instances])
+	print(templist)
+
 #---------------------------------------------------------------------------------
 # 	  								GLYCOGEN
 #---------------------------------------------------------------------------------
@@ -434,7 +472,7 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 			patterns.append('spine')
 		elif "Spine" in bpy.context.scene.data_names:
 			patterns.append('Spine')
-		if 'buoton' in bpy.context.scene.data_names:
+		if 'buoton' in bpy.context.scene.data_names: #better correct it in blender file
 			patterns.append('buoton')
 
 		firstTime = True
@@ -1184,14 +1222,15 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 					for glyName in glyList:
 						gdistance = [dist for gname, dist in bpy.types.Scene.data_glyc_to_neighb_dist if gname == glyName]
 						if gdistance:
+							n = neurObj.rsplit(' ',1)
+							nn = n[0].rsplit('_',1)
+								
 							if writeOnce:
-								n = neurObj.rsplit(' ',1)
-								writer.writerow([neurObj, len(glyList), glyName, gdistance[0],bpy.data.objects[n[0]].SA, bpy.data.objects[n[0]].vol])
+								writer.writerow([nn, len(glyList), glyName, gdistance[0],bpy.data.objects[n[0]].SA, bpy.data.objects[n[0]].vol])
 								# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
 								writeOnce = False
 							else:
-								n = neurObj.rsplit(' ',1)
-								writer.writerow([ neurObj, 0 , glyName, gdistance[0],bpy.data.objects[n[0]].SA, bpy.data.objects[n[0]].vol])
+								writer.writerow([ nn, 0 , glyName, gdistance[0],bpy.data.objects[n[0]].SA, bpy.data.objects[n[0]].vol])
 		return{"FINISHED"}
 	def invoke(self,context,event):
 		#print("bpy.context.scene.prop_bool_clusters",bpy.context.scene.prop_bool_clusters)
@@ -1386,6 +1425,7 @@ def register():
 	#glycogens measurements:
 	bpy.types.Scene.data_glyc_distances = None
 	bpy.types.Scene.data_glyc_distances_occur = None
+	bpy.types.Scene.data_solid_objects = None
 	bpy.types.Scene.glycogen_attrib_np = np.array([])
 	bpy.types.Scene.glycogen_verts_np = np.array([])
 	bpy.types.Scene.neur_obj_verts_np = np.array([])
@@ -1455,6 +1495,8 @@ def unregister():
 		del bpy.types.Scene.data_glyc_distances 
 	if bpy.types.Scene.data_glyc_distances_occur:
 		del bpy.types.Scene.data_glyc_distances_occur
+	if bpy.types.Scene.data_solid_objects:
+		del bpy.types.Scene.data_solid_objects
 
 	if bpy.types.Scene.glycogen_attrib_np.size>0:
 		del bpy.types.Scene.glycogen_attrib_np
