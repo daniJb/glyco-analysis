@@ -88,7 +88,7 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 						if common not in lst:
 							lst.append(common)
 						break
-		if "Glycogen" in lst:
+		if "Glycogen." in lst:
 			print("Created")
 			bpy.types.Scene.prop_bool_glycogen = bpy.props.BoolProperty(name="Glycogens", description=" ",
 			update=update_prop_bool_glyc)
@@ -358,9 +358,7 @@ def getVertices(pattern,coords_type):
             continue
         if pattern in specials:
         	match1 = re.search('.surf*', ob.name)# '*' 0 or more repetition
-        	#print(match1) #prints None when no match
-        	if not match1:
-        		#print(pattern, ' ', ob.name)
+        	if not match1:#prints None when no match
         		continue
         	#if not ob.name.find('surf') or not ob.name.find('surface'):
 
@@ -371,14 +369,14 @@ def getVertices(pattern,coords_type):
         else:
         	ob.select = True
         	selected_objects.append(ob)
- 
+    print(" pattern:length:first 3 objects",pattern, len(selected_objects))
+
+	#===============------------------===============
     if selected_objects and coords_type == "Center Vertices":
         func_median_location(selected_objects)
         
         for ob in selected_objects:
-        	#if ob.name == 'Glycogen': 
-            #    continue
-            #n = ob.name.rsplit('_',1) Should be done at the export only!
+        	#n = ob.name.rsplit('_',1) Should be done at the export only!
             if ob.parent is None:
                 #objs_attrib.append([n[0],"None"])
                 objs_attrib.append([ob.name,"None"])
@@ -393,11 +391,13 @@ def getVertices(pattern,coords_type):
             objs_attrib,objs_verts =glyc_toGlobal_coords(ob,objs_attrib,objs_verts)
 
     if pattern in specials:
+    	time_for_getting_solid_objects = time.time()
+    	#[bpy.data.objects['buoton1_surf'] obj_attrib aka surf length: 10248, cause its all vertices not just center
     	print('obj_attrib aka surf length:',len(objs_attrib))
     	bpy.types.Scene.data_solid_objects=get_solid_objects(objs_attrib)
     	print('obj_attrib for solids length:',len(bpy.types.Scene.data_solid_objects))
-    	#print(bpy.types.Scene.data_solid_objects)
-
+    	print("Solids, Done! in: ", time.time() - time_for_getting_solid_objects)
+    	
     return(np.array(objs_attrib),np.array(objs_verts))
 
 def get_closest_distance(first_verts, second_verts):
@@ -430,14 +430,13 @@ def get_solid_objects(childWparentList):
 		n = child.rsplit('_',1)#take the frist syllabes. e.g., bouton1_surf.059. we take bouton1_ only
 		
 		for this_child in bpy.data.objects[parent].children:
-			match=re.search(n[0]+'.solid*'| n[0]+'.volu*', this_child.name)# '*' 0 or more repetition
+			match=re.search(n[0]+'.solid*'+'|'+ n[0]+'.volu*', this_child.name)# '*' 0 or more repetition
 			if match:
 				#print('this_child, parent',this_child.name, parent)
 				list_result.append([this_child.name, parent])
 				found = True
 				break
 
-		
 		if not found:
 			printout.append(parent)
 	
@@ -450,7 +449,7 @@ def print4check(lista):
 	#{'listItem': itemfreq()...}
 	for neur_obj_name, instances in countInstances.items():
 		templist.append([neur_obj_name,instances])
-	print(templist)
+	print('missed solids:',templist)
 
 #---------------------------------------------------------------------------------
 # 	  								GLYCOGEN
