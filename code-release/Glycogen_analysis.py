@@ -88,7 +88,7 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 						if common not in lst:
 							lst.append(common)
 						break
-		if "Glycogen" in lst:
+		if "Glycogen." in lst:
 			print("Created")
 			bpy.types.Scene.prop_bool_glycogen = bpy.props.BoolProperty(name="Glycogens", description=" ",
 			update=update_prop_bool_glyc)
@@ -353,8 +353,7 @@ def getVertices(pattern,coords_type):
             continue
         if pattern in kwords:
         	match1 = re.search('.surf*', ob.name)# '*' 0 or more repetition
-        	#print(match1) #prints None when no match
-        	if not match1:
+        	if not match1:#prints None when no match
         		continue
         
         match = re.search(pattern+'*', ob.name)
@@ -371,7 +370,7 @@ def getVertices(pattern,coords_type):
         for ob in selected_objects:
         	#if ob.name == 'Glycogen': 
             #    continue
-            #n = ob.name.rsplit('_',1)
+            #n = ob.name.rsplit('_',1) lets not change data untill export time
             if ob.parent is None:
                 objs_attrib.append([ob.name,"None"])
                 objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
@@ -1066,14 +1065,14 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 			patterns.append('spine')
 		elif "Spine" in bpy.context.scene.data_names:
 			patterns.append('Spine')
-		if 'Endothelial cell ' in bpy.context.scene.data_names:
-			patterns.append('Endothelial cell')
-		elif 'endothelial cell' in bpy.context.scene.data_names:
-			patterns.append('endothelial cell')
-		if 'Pericyte' in bpy.context.scene.data_names:
-			patterns.append('Pericyte')
-		elif 'pericyte' in bpy.context.scene.data_names:
-			patterns.append('pericyte')
+		#if 'Endothelial cell ' in bpy.context.scene.data_names:
+		#	patterns.append('Endothelial cell')
+		#elif 'endothelial cell' in bpy.context.scene.data_names:
+		#	patterns.append('endothelial cell')
+		#if 'Pericyte' in bpy.context.scene.data_names:
+		#	patterns.append('Pericyte')
+		#elif 'pericyte' in bpy.context.scene.data_names:
+		#	patterns.append('pericyte')
 
 		firstTime = True
 		if patterns:
