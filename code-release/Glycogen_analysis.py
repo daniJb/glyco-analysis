@@ -1177,7 +1177,10 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 				writer.writerow(['CId','#granules','ObjectName','ObjectParent', 'Distance'])
 				rowToWrite = []
 				for CId, CCentroid,ObjectName,ObjectParent, Distance in bpy.types.Scene.data_clusters_distances:
-					writer.writerow([CId, CCentroid,ObjectName,ObjectParent, Distance])
+					n = ObjectName.rsplit('_',1)
+					if not n:
+						n[0]='Error splitting name'
+					writer.writerow([CId, CCentroid,n[0],ObjectParent, Distance])
 		
 		elif bpy.context.scene.prop_bool_glycogen == True:
 			print("writing data of [glycogen to closests neighbors objects- distances]")
@@ -1188,16 +1191,19 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 				rowToWrite = []
 				for neurObj, glyList in bpy.types.Scene.neuro_glyList_dict.items():
 					child_parent = neurObj.rsplit(' ',1)
+					child = child_parent[0].rsplit('_',1)
+					if not child:
+						child[0] = 'error splitting object name'
 					writeOnce = True
 					
 					for glyName in glyList:
 						gdistance = [dist for gname, dist in bpy.types.Scene.data_glyc_to_neighb_dist if gname == glyName]
 						if gdistance:
 							if writeOnce:
-								writer.writerow([child_parent[0], child_parent[1], len(glyList), glyName, gdistance[0]])# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
+								writer.writerow([child[0], child_parent[1], len(glyList), glyName, gdistance[0]])# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
 								writeOnce = False
 							else:
-								writer.writerow([ child_parent[0], child_parent[1], 0 , glyName, gdistance[0]])
+								writer.writerow([ child[0], child_parent[1], 0 , glyName, gdistance[0]])
 		return{"FINISHED"}
 	def invoke(self,context,event):
 		#print("bpy.context.scene.prop_bool_clusters",bpy.context.scene.prop_bool_clusters)
