@@ -331,11 +331,9 @@ def glyc_toGlobal_coords(ob,objs_attrib,objs_verts):
         globalCoords = coord_matrix *loc
         #n = ob.name.rsplit('_',1)
         if ob.parent is None:
-            #objs_attrib.append([n[0], "None"])
-            objs_attrib.append([ob.name, "None"])
+            objs_attrib.append([ob.name, "None"])#n[0]
             objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
         else:
-            #objs_attrib.append([n[0],ob.parent.name])
             objs_attrib.append([ob.name,ob.parent.name])
             objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
     return(objs_attrib,objs_verts)
@@ -349,8 +347,8 @@ def getVertices(pattern,coords_type):
     objs_verts = []
     objs_attrib_matrix = []
     objs_verts_matrix = []
-    listofStrings = ['surf', 'surface']
-    specials = ['bouton','buoton','spine']
+    #listofStrings = ['surf', 'surface']
+    specials = ['bouton','spine','Bouton','Spine']
 	#""" locations are taken before object name was stripped. so calculations are ok"""    
 
     for ob in bpy.data.objects:
