@@ -14,12 +14,12 @@
 #    along with this program.  If not, see http://www.gnu.org/licenses/
 
 bl_info={
-        "name":"Glycogen Analysis",
-        "author":"Heikki Lehvaeslaiho, Corrado Cali, Jumana Baghabra, Daniya Boges",
-        "version":"1.0",
-        "location":"VIEW3D UI > Glycogen Analysis",
-        "description":"Glycogen Analysis (clustering + Measurements + calculate Dbscan Optimum values)",
-        "category":"objects"
+		"name":"Glycogen Analysis",
+		"author":"Heikki Lehvaeslaiho, Corrado Cali, Jumana Baghabra, Daniya Boges",
+		"version":"1.0",
+		"location":"VIEW3D UI > Glycogen Analysis",
+		"description":"Glycogen Analysis (clustering + Measurements + calculate Dbscan Optimum values)",
+		"category":"objects"
 }
 import bpy
 from bpy.props import*
@@ -324,75 +324,90 @@ def populate_glycogen_coords():
 		else:
 			bpy.types.Scene.data_obj_coords.append([ob.name, ob.parent.name , str(ob.location.x),str(ob.location.y),str(ob.location.z)])
 
-def glyc_toGlobal_coords(ob,objs_attrib,objs_verts):
-    coord_matrix = ob.matrix_world
-    for v in ob.data.vertices:
-        loc = v.co
-        globalCoords = coord_matrix *loc
-        #n = ob.name.rsplit('_',1)
-        if ob.parent is None:
-            objs_attrib.append([ob.name, "None"])#n[0]
-            objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
-        else:
-            objs_attrib.append([ob.name,ob.parent.name])
-            objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
-    return(objs_attrib,objs_verts)
+def glyc_toGlobal_coords(ob,objs_attrib,objs_verts,kwords_flg):
+	coord_matrix = ob.matrix_world
+	
+	for v in ob.data.vertices:
+		loc = v.co
+		globalCoords = coord_matrix *loc
+		#n = ob.name.rsplit('_',1)
+		if ob.parent is None:
+			if kwords_flg:
+				objs_attrib.append([ob.name, "None", ob.SA , ob.vol ])#n[0]
+			else:
+				objs_attrib.append([ob.name, "None"])#n[0]
+			objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
+		else:
+			if kwords_flg:
+				objs_attrib.append([ob.name,ob.parent.name, ob.SA , ob.vol ])
+			else:
+				objs_attrib.append([ob.name,ob.parent.name])
+			objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
+			
+	return(objs_attrib,objs_verts)
 
 # getVertices will seperate vertices from attributes
 def getVertices(pattern,coords_type): 
-    func_unhide()
-    func_unselect()
-    selected_objects = []
-    objs_attrib = [] #either name, parent or just name
-    objs_verts = []
-    objs_attrib_matrix = []
-    objs_verts_matrix = []
-    kwords = ['bouton','spine','Bouton','Spine']
 	#""" locations are taken before object name was stripped. so calculations are ok"""
-    for ob in bpy.data.objects:
-        if ob.type !='MESH':
-            continue
-        if pattern in kwords:
-        	match1 = re.search('.surf*', ob.name)# '*' 0 or more repetition
-        	if not match1:#prints None when no match
-        		continue
-        
-        match = re.search(pattern+'*', ob.name) # if pattern+'.', this wont take 'Glycogen' as '.' is 1 or more repetition
-        if not match:
-            ob.hide = True
-            continue
-        else:
-        	ob.select = True
-        	selected_objects.append(ob)
- 	#===============------------------===============
-    if selected_objects and coords_type == "Center Vertices":
-        func_median_location(selected_objects)
-        
-        for ob in selected_objects:
-        	#if ob.name == 'Glycogen': 
-            #    continue
-            #n = ob.name.rsplit('_',1) lets not change data untill export time
-            if ob.parent is None:
-                objs_attrib.append([ob.name,"None"])
-                objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
-            else:
-                objs_attrib.append([ob.name,ob.parent.name]) #n[0]
-                objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
+	func_unhide()
+	func_unselect()
+	selected_objects = [] #Stores Entire Object, not just names
+	objs_attrib = [] #either name, parent or just name
+	objs_verts = []
+	objs_attrib_matrix = []
+	objs_verts_matrix = []
+	kwords = ['bouton','spine','Bouton','Spine']
+	kwords_flg = False
 
-    elif selected_objects and coords_type == "All Vertices":
-        for ob in selected_objects:
-            objs_attrib,objs_verts =glyc_toGlobal_coords(ob,objs_attrib,objs_verts)
+	for ob in bpy.data.objects:
+		if ob.type !='MESH':
+			continue
+		if pattern in kwords:
+			match1 = re.search('.surf*', ob.name)# '*' 0 or more repetition
+			if not match1:#prints None when no match
+				continue
+		
+		match = re.search(pattern+'*', ob.name) # if pattern+'.', this wont take 'Glycogen' as '.' is 1 or more repetition
+		if not match:
+			ob.hide = True
+			continue
+		else:
+			ob.select = True
+			selected_objects.append(ob)
+	#===============------------------===============
+	if pattern in kwords:
+		kwords_flg = True #This category has a size (for granules), area and volume (for spines and boutons)
 
-    if pattern in kwords:
-    	print(pattern,'with objs_attrib (surf) length:', len(objs_attrib))
-    	time_for_getting_solid_objects=time.time()
-    	#retrieved as so: [bpy.data.objects['buoton1_surf']]
-    	#len(obj_attrib) aka surf: 10248, cause its all vertices not center only, len(obj_attrib) of surfaces must euqal len(obj_attrib) of solids|vol
-    	bpy.types.Scene.neur_solid_obj_names = get_solid_objects(objs_attrib)
-    	print(pattern, 'with obj_attrib (solids) length:',len(bpy.types.Scene.neur_solid_obj_names))
-    	print("Solids, Done! in: ", time.time() - time_for_getting_solid_objects)
-    
-    return(np.array(objs_attrib),np.array(objs_verts))
+	if selected_objects and coords_type == "Center Vertices":
+		func_median_location(selected_objects)
+		
+		for ob in selected_objects:
+			#if ob.name == 'Glycogen': 
+			#    continue
+			#n = ob.name.rsplit('_',1) lets not change data untill export time
+			if ob.parent is None:
+				objs_attrib.append([ob.name,"None",ob.dimensions.x])#getting the size of the granule
+				#objs_attrib.append([ob.name,"None"])
+				objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
+			else:
+				#objs_attrib.append([ob.name,ob.parent.name]) #n[0] 
+				objs_attrib.append([ob.name,ob.parent.name,ob.dimensions.x])
+				objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
+
+	elif selected_objects and coords_type == "All Vertices":
+		for ob in selected_objects:
+			objs_attrib,objs_verts =glyc_toGlobal_coords(ob,objs_attrib,objs_verts,kwords_flg)
+
+	#if pattern in kwords:
+	#	print(pattern,'with objs_attrib (surf) length:', len(objs_attrib))
+	#	time_for_getting_solid_objects=time.time()
+		#retrieved as so: [bpy.data.objects['buoton1_surf']]
+		#len(obj_attrib) aka surf: 10248, cause its all vertices not center only, len(obj_attrib) of surfaces must euqal len(obj_attrib) of solids|vol
+	#	bpy.types.Scene.neur_solid_obj_names = get_solid_objects(objs_attrib)
+	#	print(pattern, 'with obj_attrib (solids) length:',len(bpy.types.Scene.neur_solid_obj_names))
+	#	print("Solids, Done! in: ", time.time() - time_for_getting_solid_objects)
+	
+	return(np.array(objs_attrib),np.array(objs_verts))
 
 def get_solid_objects(childWparentList):
 	list_result = []
@@ -439,7 +454,7 @@ def get_closest_distance(first_verts, second_verts):
 	a = np.vstack(dist)
 	b = np.vstack(indexes)
 	c = np.hstack((b,a))
-
+	#[index(glycogen#),objectindex,distance]?
 	for i in range(0,len(c)):
 		closests_points_info.append([i, c[i,0] , c[i,1]])
 	
@@ -518,7 +533,7 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		enum2 = [] #associated granules (dropdown)
 
 		''' we need proper data strcuture for: neural strcure (dropdown), associated granules (dropdown),
- 		NoGranules (Textbox), distance (Textbox)'''
+		NoGranules (Textbox), distance (Textbox)'''
 		for neural_obj_name, noOfGlycogens in bpy.types.Scene.data_glyc_distances_occur:
 			bpy.types.Scene.data_glyc_neighbours.append(neural_obj_name)
 			bpy.types.Scene.data_noOfGlyc.append(noOfGlycogens)
@@ -570,11 +585,16 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 
 	def occurences(self):
 		objects_names=[]
-		#for the glycogen occurance output UIdropdownList:
-		gly_names=[] 
+		objects_SA_vol=[]
+		gly_names=[]
+		gly_sizes=[]
+
 		bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = {} #used for data export
 		bpy.types.Scene.neuro_glyList_dict = {} #used for UI display (a group by done on 'sorted')
-		dict_temp = {}
+		dict_temp1 = {}
+		bpy.types.Scene.dict_temp2= {}
+		bpy.types.Scene.dict_temp3= {}
+		
 		
 		closest_points_np = (np.array(bpy.types.Scene.data_glyc_distances)).astype(int)
 		
@@ -585,16 +605,27 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],1]
 				))
 				)#join (object name, parent) with a " " between them
+			#store size and surface area
+			if bpy.types.Scene.neur_obj_attrib_np.size == 4: #this object is either a spine or bouton has a surface area and volume attributes
+				objects_SA_vol.append(" ".join
+					((
+					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],2],
+					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],3]
+					))
+					)
 			gly_names.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],0])
-		#end loop
+			gly_sizes.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],1])
+		
 		
 		'''now we can create dictionary from obj&gly names:'''
 		for i in range(0,len(gly_names)):
 			#the below method in populating dictionaries will perform (itemfreq) on objects names so that it will not duplicate keys (robust?)
-			dict_temp[gly_names[i]] = objects_names[i]
-
+			dict_temp1[gly_names[i]] = objects_names[i] #we only need to sort this
+			bpy.types.Scene.dict_temp2[gly_names[i]] = gly_sizes[i] #public
+			bpy.types.Scene.dict_temp3[objects_names[i]] = objects_SA_vol[i] #public
+		
 		#sort the dictionary:b = OrderedDict(sorted(a.items()))
-		bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = OrderedDict(sorted(dict_temp.items(), key=lambda val: val[1])) #checked
+		bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = OrderedDict(sorted(dict_temp1.items(), key=lambda val: val[1])) #checked
 
 		#now we need to group glycogens in a list per neuro
 		#===============================================
@@ -611,7 +642,6 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 				templist1.append(glyname)
 		bpy.types.Scene.neuro_glyList_dict[current_neuro]=templist1 #store last list, as loop finishes before it gets to store it in'else'
 		#===============================================
-
 		#now we count instances of glycogens per neuro object closests to it
 		templist=[]
 		countInstances = Counter(objects_names) #countInstances is a dictionary
@@ -621,7 +651,8 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 
 		return templist
 
-#+++++++ UIList Gadget ++++++++
+
+#=========+++++++ UIList Gadget +++++++===========+
 # Custom properties, will be saved with .blend file.
 class PG_List_Entry(bpy.types.PropertyGroup):
 	li_glyc_neighbours = StringProperty(name="Object Name")
@@ -1185,7 +1216,7 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		#occrences will give the total number of how many times each value occured 
 		#e.g.,
 		""" array([[ 0, 17],
-       			  [ 1, 16]])  
+				  [ 1, 16]])  
 		"""
 		for i in occurences:
 			indexes = np.where(clsLbls == i[0])
@@ -1195,8 +1226,53 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		return cls_centroids
 	
 
-class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
+class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):#tryout
 	bl_idname="objects.export_clusters_measures"
+	bl_label= "write data to file"
+	
+	directory = bpy.props.StringProperty()
+	filename = bpy.props.StringProperty()
+
+	def execute(self,context):
+		directory = self.directory
+		filename = self.filename
+		fname = filename+'.tab'
+		the_name = os.path.join(directory, fname)
+		#bpy.context.active_object.SA from NueroMorph
+		#bpy.context.active_object.vol
+		#bpy.data.objects['obj.name'].dimensions == bpy.context.active_object.dimensions.x
+		
+		if bpy.context.scene.prop_bool_glycogen == True:
+			print("writing data of [glycogen to closests neighbors objects- distances]")
+			with open(the_name,'wt') as output:
+				writer = csv.writer(output, delimiter='\t')
+				writer.writerow(['Neural Object','Parent','No.Associated Glycogens','Glycogen Names','Distance','SurfArea','Volume','Size'])
+
+				rowToWrite = []
+				for neurObj, glyList in bpy.types.Scene.neuro_glyList_dict.items():
+					child_parent = neurObj.rsplit(' ',1)
+					child = child_parent[0].rsplit('_',1)
+					if not child:
+						child[0] = 'error splitting object name'
+					writeOnce = True
+					
+					for glyName in glyList:
+						gdistance = [dist for gname, dist in bpy.types.Scene.data_glyc_to_neighb_dist if gname == glyName]
+						if gdistance:
+							if writeOnce:
+								writer.writerow([child[0], child_parent[1], len(glyList), glyName, gdistance[0]])# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
+								writeOnce = False
+							else:
+								writer.writerow([ child[0], child_parent[1], 0 , glyName, gdistance[0]])
+		return{"FINISHED"}
+	def invoke(self,context,event):
+		#print("bpy.context.scene.prop_bool_clusters",bpy.context.scene.prop_bool_clusters)
+		WindowManager = context.window_manager
+		WindowManager.fileselect_add(self)
+		return{"RUNNING_MODAL"}
+
+class OBJECTS_OT_export_clusters_measures1(bpy.types.Operator):#Original
+	bl_idname="objects.export_clusters_measures1"#Original
 	bl_label= "write data to file"
 	
 	directory = bpy.props.StringProperty()
