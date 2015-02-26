@@ -495,15 +495,15 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		for patt in patterns:
 			temp_attrib_np, temp_verts_np = getVertices(patt, "All Vertices")
 			if temp_attrib_np.size:
-					print("getting vertices for: ", patt)
-					if firstTime:
-						bpy.types.Scene.neur_obj_verts_np = temp_verts_np
-						bpy.types.Scene.neur_obj_attrib_np = temp_attrib_np
-						firstTime = False
-						#to set the big array to same dimensions of concatinated arrays
-					else:
-						bpy.types.Scene.neur_obj_attrib_np =np.concatenate((bpy.types.Scene.neur_obj_attrib_np, temp_attrib_np),axis=0)
-						bpy.types.Scene.neur_obj_verts_np = np.concatenate((bpy.types.Scene.neur_obj_verts_np, temp_verts_np),axis=0)
+				print("getting vertices for: ", patt)
+				if firstTime:
+					bpy.types.Scene.neur_obj_verts_np = temp_verts_np
+					bpy.types.Scene.neur_obj_attrib_np = temp_attrib_np
+					firstTime = False
+					#to set the big array to same dimensions of concatinated arrays
+				else:
+					bpy.types.Scene.neur_obj_attrib_np =np.concatenate((bpy.types.Scene.neur_obj_attrib_np, temp_attrib_np),axis=0)
+					bpy.types.Scene.neur_obj_verts_np = np.concatenate((bpy.types.Scene.neur_obj_verts_np, temp_verts_np),axis=0)
 
 		if bpy.types.Scene.neur_obj_attrib_np.size:
 			bpy.types.Scene.data_glyc_distances = get_closest_distance(bpy.types.Scene.glycogen_verts_np, bpy.types.Scene.neur_obj_verts_np)
