@@ -595,29 +595,34 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		bpy.types.Scene.dict_temp2= {}
 		bpy.types.Scene.dict_temp3= {}
 		
+		### +++++ all datastructures indexes correspond with the main glycogen index++++++ ####
 		
 		closest_points_np = (np.array(bpy.types.Scene.data_glyc_distances)).astype(int)
-		
 		for k in range(0, len(closest_points_np)):
+			#store closests neighbours (parent  child)
 			objects_names.append(" ".join
 				((
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],0],
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],1]
 				))
 				)#join (object name, parent) with a " " between them
-			#store size and surface area
-			if bpy.types.Scene.neur_obj_attrib_np.size == 4: #this object is either a spine or bouton has a surface area and volume attributes
+
+			#store size for each glycogen
+			gly_names.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],0])
+			gly_sizes.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],1])
+			
+			#this object is either a spine or bouton, has a surface area and volume attributes
+			#store volume and surface area
+			if bpy.types.Scene.neur_obj_attrib_np.size == 4: 
 				objects_SA_vol.append(" ".join
 					((
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],2],
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],3]
 					))
 					)
-			gly_names.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],0])
-			gly_sizes.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],1])
-		
-		
+			
 		'''now we can create dictionary from obj&gly names:'''
+		''' one nested dictionary () '''
 		for i in range(0,len(gly_names)):
 			#the below method in populating dictionaries will perform (itemfreq) on objects names so that it will not duplicate keys (robust?)
 			dict_temp1[gly_names[i]] = objects_names[i] #we only need to sort this
