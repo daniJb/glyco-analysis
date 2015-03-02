@@ -42,7 +42,9 @@ import time
 
 import os
 from os.path import expanduser
-import time
+import math
+import mathutils
+
 #---------------------------------------------------------------------------------
 # 	  					# INFO TEXTS #
 #---------------------------------------------------------------------------------
@@ -324,14 +326,6 @@ def populate_glycogen_coords():
 		else:
 			bpy.types.Scene.data_obj_coords.append([ob.name, ob.parent.name , str(ob.location.x),str(ob.location.y),str(ob.location.z)])
 
-
-
-
-
-
-
-
-
 """------ NEURO_MORPH --------"""
 def cross_product(v0, v1):
     x =   v0[1]*v1[2] - v0[2]*v1[1]
@@ -434,40 +428,46 @@ def glyc_toGlobal_coords(ob_index,objs_attrib,objs_verts,objs_surf,objs_solids,k
 				break
 			else:
 				surf_are_time_start = time.time()
-				bpy.tyeps.Scene.surf_area = fget_SA(objs_surf[ob_index])#property(fget_SA, fset_SA)
+				bpy.types.Scene.surf_area = fget_SA(objs_surf[ob_index])#property(fget_SA, fset_SA)
 				bpy.types.Scene.volume = fget_vol(objs_solids[ob_index])
 				break
-	# print(objs_surf[ob_index], 'sa', bpy.types.Scene.surf_area, 'vol', bpy.types.Scene.volume)
-	# this loop and saves all vertices for one object
-				
-
-
-
-
-
-
-
-
-
+	
 	coord_matrix = objs_surf[ob_index].matrix_world
+	# print(objs_surf[ob_index], 'sa', bpy.types.Scene.surf_area, 'vol', bpy.types.Scene.volume)
 
-	for v in ob.data.vertices:
+	# this loop and saves all vertices for one object
+	for v in objs_surf[ob_index].data.vertices:
 		loc = v.co
 		globalCoords = coord_matrix *loc
-		#n = ob.name.rsplit('_',1)
-		if ob.parent is None:
+		#object has no parent
+		if objs_surf[ob_index].parent is None:
+			objs_verts.append([str(globalCoords.x)
+				,str(globalCoords.y)
+				,str(globalCoords.z) ])
+			# object is a bouton/spine
 			if kwords_flg:
-				objs_attrib.append([ob.name, "None", ob.SA , ob.vol ])#n[0]
+				objs_attrib.append([objs_surf[ob_index].name
+					,'None'
+					, bpy.types.Scene.surf_area
+					, bpy.types.Scene.volume ])
+			# object is endo or pericyte
 			else:
-				objs_attrib.append([ob.name, "None"])#n[0]
-			objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
+				obj = ob_index #for non bouton/spine objects, the ob_index is actually an object. so we correct variable name to obj
+				objs_attrib.append([obj.name,'None'])
+		# object has a parent
 		else:
+			objs_verts.append([str(globalCoords.x)
+					,str(globalCoords.y)
+					,str(globalCoords.z) ])
 			if kwords_flg:
-				objs_attrib.append([ob.name,ob.parent.name, ob.SA , ob.vol ])
+				objs_attrib.append([objs_surf[ob_index].name
+					,objs_surf[ob_index].parent.name
+					,bpy.types.Scene.surf_area
+					,bpy.types.Scene.volume ])
 			else:
-				objs_attrib.append([ob.name,ob.parent.name])
-			objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
-			
+				obj = ob_index
+				objs_attrib.append([obj.name, obj.parent.name])
+				
 	return(objs_attrib,objs_verts)
 
 # getVertices will seperate vertices from attributes
@@ -491,7 +491,7 @@ def getVertices(pattern,coords_type):
 	
 	#================ storing objects ===================
 	for ob in bpy.data.objects:
-		if ob.types != 'MESH': #only taking MESHS
+		if ob.type != 'MESH': #only taking MESHS
 			continue
 		if kwords_flg:
 			#for every surf there's either a solid or vol object
@@ -502,7 +502,7 @@ def getVertices(pattern,coords_type):
 				for child in ob.parent.children:
 					# there can either be a solid or vol per parent. not correct to have both
 					one_word=ob.name.rsplit('_',1)
-					if re.search(one_word[0]+'.*solid*'+ one_word[0]+'.*volu*', child.name):
+					if re.search(one_word[0]+ '.*solid*' + '|' + one_word[0] + '.*volu*', child.name):
 						selected_objects_solids.append(child)
 						break
 			else:
@@ -523,7 +523,7 @@ def getVertices(pattern,coords_type):
 		print("selected_objects",len(selected_objects), selected_objects[0])
 	if selected_objects_solids:
 		print("selected_objects_solids",len(selected_objects_solids),selected_objects_solids[0])
-	if selected_objects_surfs and selected_objects_solids and selected_objects_parents:
+	if selected_objects_surfs and selected_objects_solids:
 		print("selected_objects_surfs",len(selected_objects_surfs),selected_objects_surfs[0])
 	
 	#================ vertices/attributes ===================
@@ -647,9 +647,9 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		firstTime = True
 
 		for patt in patterns:
+			print("getting vertices for: ", patt)
 			temp_attrib_np, temp_verts_np = getVertices(patt, "All Vertices")
 			if temp_attrib_np.size:
-				print("getting vertices for: ", patt)
 				if firstTime:
 					bpy.types.Scene.neur_obj_verts_np = temp_verts_np
 					bpy.types.Scene.neur_obj_attrib_np = temp_attrib_np
@@ -658,6 +658,12 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 				else:
 					bpy.types.Scene.neur_obj_attrib_np =np.concatenate((bpy.types.Scene.neur_obj_attrib_np, temp_attrib_np),axis=0)
 					bpy.types.Scene.neur_obj_verts_np = np.concatenate((bpy.types.Scene.neur_obj_verts_np, temp_verts_np),axis=0)
+
+		print("this attrib: size ",patt,bpy.types.Scene.neur_obj_attrib_np.size)
+		print("this attrib: len ",patt,len(bpy.types.Scene.neur_obj_attrib_np))
+		print("this vertices: size ",patt,bpy.types.Scene.neur_obj_verts_np.size)
+		print("this vertices: len ",patt,len(bpy.types.Scene.neur_obj_verts_np))
+
 
 		if bpy.types.Scene.neur_obj_attrib_np.size:
 			bpy.types.Scene.data_glyc_distances = get_closest_distance(bpy.types.Scene.glycogen_verts_np, bpy.types.Scene.neur_obj_verts_np)
@@ -765,22 +771,24 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 			gly_names.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],0])
 			gly_sizes.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],1])
 			
-			#this object is either a spine or bouton, has a surface area and volume attributes
-			#store volume and surface area
-			if bpy.types.Scene.neur_obj_attrib_np.size == 4: 
+		#this object is either a spine or bouton, has a surface area and volume attributes
+		#store volume and surface area
+			if bpy.types.Scene.neur_obj_attrib_np.size == 4:
 				objects_SA_vol.append(" ".join
 					((
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],2],
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],3]
 					))
 					)
-			
+				
 		'''now we can create dictionary from obj&gly names:'''
 		''' one nested dictionary () '''
 		for i in range(0,len(gly_names)):
 			#the below method in populating dictionaries will perform (itemfreq) on objects names so that it will not duplicate keys (robust?)
 			dict_temp1[gly_names[i]] = objects_names[i] #we only need to sort this
 			bpy.types.Scene.dict_temp2[gly_names[i]] = gly_sizes[i] #public
+			
+			#we need {objects_names, objects_SA_Vol} without repetition,i.e., its len < len(glycogens)
 			bpy.types.Scene.dict_temp3[objects_names[i]] = objects_SA_vol[i] #public
 		
 		#sort the dictionary:b = OrderedDict(sorted(a.items()))
