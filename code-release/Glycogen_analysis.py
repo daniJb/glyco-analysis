@@ -769,18 +769,24 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 
 			#store size for each glycogen
 			gly_names.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],0])
-			gly_sizes.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],1])
+			gly_sizes.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],2]) #indx 1 is the parent
 			
 		#this object is either a spine or bouton, has a surface area and volume attributes
 		#store volume and surface area
-			if bpy.types.Scene.neur_obj_attrib_np.size == 4:
+			if bpy.types.Scene.neur_obj_attrib_np.shape[1] == 4:
 				objects_SA_vol.append(" ".join
 					((
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],2],
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],3]
 					))
 					)
-				
+		print('len(objects_names)',len(objects_names))
+		print('len(gly_names)',len(gly_names))
+		print('len(objects_SA_vol', len(objects_SA_vol))
+
+		if not objects_names or not gly_names or not objects_SA_vol:
+			print('error, faulty array - occurences function- closest neighbours glycoges')
+
 		'''now we can create dictionary from obj&gly names:'''
 		''' one nested dictionary () '''
 		for i in range(0,len(gly_names)):
@@ -788,7 +794,7 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 			dict_temp1[gly_names[i]] = objects_names[i] #we only need to sort this
 			bpy.types.Scene.dict_temp2[gly_names[i]] = gly_sizes[i] #public
 			
-			#we need {objects_names, objects_SA_Vol} without repetition,i.e., its len < len(glycogens)
+			#we need {objects_names, objects_SA_Vol} without repetition, its len < len(glycogens). wrong to place it in a glyocgen loop
 			bpy.types.Scene.dict_temp3[objects_names[i]] = objects_SA_vol[i] #public
 		
 		#sort the dictionary:b = OrderedDict(sorted(a.items()))
@@ -1417,14 +1423,21 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):#tryout
 			with open(the_name,'wt') as output:
 				writer = csv.writer(output, delimiter='\t')
 				#writer.writerow(['Neural Object','Parent','No.Associated Glycogens','Glycogen Names','Distance','SurfArea','Volume','Size'])
-				writer.writerow(['Neural Object','Parent', 'SurfArea','Volume','No.Associated Glycogens','Glycogen Names','Size','Distance',])
+				writer.writerow(['Neural Object'
+					,' --- Parent---'
+					, '---SurfArea---'
+					,'---Volume---'
+					,'----No.Associated Glycogens----'
+					,'----Glycogen Names----'
+					,'----Size----'
+					,'----Distance----',])
 
 				rowToWrite = []
 				for neurObj, glyList in bpy.types.Scene.neuro_glyList_dict.items():
 					child_parent = neurObj.rsplit(' ',1)
 					child = child_parent[0].rsplit('_',1) #taking out surf*,vol*,solid* strings from names
-					if bpy.types.Scene.dict_temp3[child_parent]:
-						sa_vol = bpy.types.Scene.dict_temp3[child_parent].rsplit(' ',1)
+					if bpy.types.Scene.dict_temp3[neurObj]:
+						sa_vol = bpy.types.Scene.dict_temp3[neurObj].rsplit(' ',1)
 						surf_area = sa_vol[0]
 						volume = sa_vol[1]
 					else:
