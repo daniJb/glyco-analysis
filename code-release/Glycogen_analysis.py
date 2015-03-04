@@ -714,7 +714,6 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		print("this vertices: size ",patt,bpy.types.Scene.neur_obj_verts_np.size)
 		print("this vertices: len ",patt,len(bpy.types.Scene.neur_obj_verts_np))
 
-
 		if bpy.types.Scene.neur_obj_attrib_np.size:
 			bpy.types.Scene.data_glyc_distances = get_closest_distance(bpy.types.Scene.glycogen_verts_np, bpy.types.Scene.neur_obj_verts_np)
 			bpy.types.Scene.data_glyc_distances_occur = self.occurences()
