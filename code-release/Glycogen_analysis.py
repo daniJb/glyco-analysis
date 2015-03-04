@@ -134,8 +134,7 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 			bpy.types.Scene.glycogen_verts_np = np.array([])
 			bpy.types.Scene.neur_obj_verts_np = np.array([])
 			bpy.types.Scene.neur_obj_attrib_np = np.array([])
-			bpy.types.Scene.neur_solid_obj_names = []
-
+			
 			bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = {}
 			bpy.types.Scene.neuro_glyList_dict = {}
 
@@ -530,6 +529,7 @@ def getVertices(pattern,coords_type):
 	#================ vertices/attributes ===================
 
 	if bpy.context.scene.prop_bool_glycogen:
+		
 		if selected_objects and coords_type == "Center Vertices":
 			# usual case for glycogens
 			# we need to get size dimensions per granule
@@ -564,29 +564,52 @@ def getVertices(pattern,coords_type):
 						,[]
 						,kwords_flg)
 		#========================================================
+
 	elif  bpy.context.scene.prop_bool_clusters:
 
 		if selected_objects_surfs and selected_objects_solids and coords_type == "Center Vertices":
+			# usual case for spines and boutons
 			if kwords_flg and selected_objects_surfs:
-				time_for_getting_solid_objects=time.time()
-				# we take the index
-				for ob_index in range(len(selected_objects_surfs)):
-					objs_attrib, objs_verts = glyc_toGlobal_coords(ob_index
-						,objs_attrib
-						,objs_verts
-						,selected_objects_surfs
-						,selected_objects_solids
-						,kwords_flg)
-				print("getting solids/vols for ",pattern, 'Done in:', time.time()-time_for_getting_solid_objects)
+				is_neuro_morpth = False
+				path_list = paths()
+
+				# ----------- checking for neuro morph -------
+				for path in path_list:
+					for mod_name, mod_path in bpy.path.module_names(path):
+						if mod_name == 'NeuroMorph Measurement Tools:  Submesh Volume, Surface Area, and Length':
+							is_neuro_morpth = True
+							break
+				# --------------------------------------------
+				func_median_location(selected_objects_surfs)
+				for ob in selected_objects_surfs:
+					objs_verts.append([str(ob.location.x)
+						,str(ob.location.y)
+						,str(ob.location.z)])
+					if is_neuro_morpth:
+						bpy.types.Scene.surf_area = ob.SA
+						bpy.types.Scene.volume = ob.vol
+					else:
+						bpy.types.Scene.surf_area = fget_SA(ob)
+						bpy.types.Scene.volume = fget_vol(ob)	
+					if ob.parent is None:
+						objs_attrib.append([ob.name
+							,'None'
+							, bpy.types.Scene.surf_area
+							, bpy.types.Scene.volume ])
+					else:
+						objs_attrib.append([ob.name
+							, ob.parent.name
+							, bpy.types.Scene.surf_area
+							, bpy.types.Scene.volume ])
 			# case for Endo's and Pericytes ==> needs testing after update
-			elif not kwords_flg and selected_objects:
-				for ob in selected_objects:
-					objs_attrib, objs_verts = glyc_toGlobal_coords(ob
-						,objs_attrib
-						,objs_verts
-						,[]
-						,[]
-						,kwords_flg)
+			#elif not kwords_flg and selected_objects:
+			#	for ob in selected_objects:
+			#		objs_attrib, objs_verts = glyc_toGlobal_coords(ob
+			#			,objs_attrib
+			#			,objs_verts
+			#			,[]
+			#			,[]
+			#			,kwords_flg)
 
 	return(np.array(objs_attrib),np.array(objs_verts))
 
@@ -1354,7 +1377,6 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		if patterns:
 			for patt in patterns:
 				print("getting Center vertices for: ", patt)
-				
 				temp_attrib_np, temp_verts_np = getVertices(patt, "Center Vertices")
 				print("temp_attrib_np.shape for ",patt,temp_attrib_np.shape)
 				print("temp_verts_np.shape for ",patt, temp_verts_np.shape)
@@ -1466,7 +1488,6 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):#tryout
 			with open(the_name,'wt') as output:
 				writer = csv.writer(output, delimiter='\t')
 				writer.writerow(['CId','#granules','ObjectName','ObjectParent','surface area','volume', 'Distance'])
-				#rowToWrite = []
 				
 				for CId, CCentroid,ObjectName,ObjectParent, Distance in bpy.types.Scene.data_clusters_distances:
 					n = ObjectName.rsplit('_',1)
@@ -1484,8 +1505,6 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):#tryout
 						,surfAreaVolume[0]
 						,surfAreaVolume[1]
 						, Distance])
-
-
 		elif bpy.context.scene.prop_bool_glycogen == True:
 			print("writing data of [glycogen to closests neighbors objects- distances]")
 			with open(the_name,'wt') as output:
@@ -1532,61 +1551,6 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):#tryout
 		WindowManager = context.window_manager
 		WindowManager.fileselect_add(self)
 		return{"RUNNING_MODAL"}
-
-class OBJECTS_OT_export_clusters_measures1(bpy.types.Operator):#Original
-	bl_idname="objects.export_clusters_measures1"#Original
-	bl_label= "write data to file"
-	
-	directory = bpy.props.StringProperty()
-	filename = bpy.props.StringProperty()
-
-	def execute(self,context):
-		directory = self.directory
-		filename = self.filename
-		fname = filename+'.tab'
-		the_name = os.path.join(directory, fname)
-		
-		if bpy.context.scene.prop_bool_clusters == True:
-			print("writing data of [clusters centroids to spine-bouton centroids] distances")
-			with open(the_name,'wt') as output:
-				writer = csv.writer(output, delimiter='\t')
-				writer.writerow(['CId','#granules','ObjectName','ObjectParent', 'Distance'])
-				rowToWrite = []
-				for CId, CCentroid,ObjectName,ObjectParent, Distance in bpy.types.Scene.data_clusters_distances:
-					n = ObjectName.rsplit('_',1)
-					if not n:
-						n[0]='Error splitting name'
-					writer.writerow([CId, CCentroid,n[0],ObjectParent, Distance])
-		
-		elif bpy.context.scene.prop_bool_glycogen == True:
-			print("writing data of [glycogen to closests neighbors objects- distances]")
-			with open(the_name,'wt') as output:
-				writer = csv.writer(output, delimiter='\t')
-				writer.writerow(['Neural Object','Parent','No.Associated Glycogens','Glycogen Names','Distance'])
-
-				rowToWrite = []
-				for neurObj, glyList in bpy.types.Scene.neuro_glyList_dict.items():
-					child_parent = neurObj.rsplit(' ',1)
-					child = child_parent[0].rsplit('_',1)
-					if not child:
-						child[0] = 'error splitting object name'
-					writeOnce = True
-					
-					for glyName in glyList:
-						gdistance = [dist for gname, dist in bpy.types.Scene.data_glyc_to_neighb_dist if gname == glyName]
-						if gdistance:
-							if writeOnce:
-								writer.writerow([child[0], child_parent[1], len(glyList), glyName, gdistance[0]])# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
-								writeOnce = False
-							else:
-								writer.writerow([ child[0], child_parent[1], 0 , glyName, gdistance[0]])
-		return{"FINISHED"}
-	def invoke(self,context,event):
-		#print("bpy.context.scene.prop_bool_clusters",bpy.context.scene.prop_bool_clusters)
-		WindowManager = context.window_manager
-		WindowManager.fileselect_add(self)
-		return{"RUNNING_MODAL"}
-
 #--------------------------------------------------------------------------------
 #                                   PANEL LAYOUT
 #--------------------------------------------------------------------------------
