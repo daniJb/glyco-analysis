@@ -2,7 +2,7 @@
 
 ### Introduction:
 
-Glycogen_analysis.py is a python-blender API based script that performs analysis on a reconstructed module of glycogen data. The work presented here is part of the ongoing Neuro-Inspired High Performance Computing project. It is a collaboration between KAUST core labs and the BBP team at EPFL. This work is also considered part of a number of stages for implementing Neural Energetics from a visualization perspective.
+Glycogen_analysis.py is a python-blender API based script that performs analysis on a reconstructed module of glycogen data. The work presented here is part of the ongoing Neuro-Inspired High Performance Computing project, which is a collaboration between KAUST core labs and the BBP team at EPFL. This work is also considered part of a number of stages for implementing Neural Energetics from a visualization perspective.
 
 #### Software and Data requirements:
 For the addon to run properly it requires python3.4.2 and blender2.72b. Python installation should have site-packages support that includes:
