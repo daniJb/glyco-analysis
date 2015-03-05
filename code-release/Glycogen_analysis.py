@@ -1017,8 +1017,8 @@ class OBJECTS_OT_calculate_clustering_param(bpy.types.Operator):
 		for x in np.arange(bpy.context.scene.prop_eps1, bpy.context.scene.prop_eps2, bpy.context.scene.prop_interval):
 			db = DBSCAN(eps=x, min_samples=bpy.context.scene.prop_min_samples).fit(np_points)
 			core_samples = db.core_sample_indices_
-
 			labels = db.labels_
+
 			no_clusters = len(set(labels)) - (1 if -1 in labels else 0)
 			sil_index = metrics.silhouette_score(np_points, labels)#sillohouette coeffecient			
 			print('%0.2f 	%2d		%+0.3f' %(x, no_clusters,sil_index))
@@ -1190,6 +1190,10 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		bpy.types.Scene.flag_clusters_measure = True
 		bpy.types.Scene.flag_clusters_measured = False
 
+		# hiding relationship lines if they're ON
+		self.relationship_lines_off()
+		# self.relationship_lines_off doesnt work without bracekts in python3, doesnt give an error either!
+
 		return{"FINISHED"}
 
 	## Get Glycogen Layer ##
@@ -1335,6 +1339,14 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 					if counting == len(children_list):
 						ob.select = True
 						bpy.ops.object.parent_set(type='OBJECT')
+
+	def relationship_lines_off(self):
+		for area in bpy.context.screen.areas:
+			print(area.type)
+			if area.type == 'VIEW_3D':
+				print('relationship lines are ',area.spaces[0].show_relationship_lines, 'will be switched off now')
+				if area.spaces[0].show_relationship_lines:
+					area.spaces[0].show_relationship_lines = False
 
 	#def init(self):
 	#	bpy.types.Scene.data_glyc_clusters = []
