@@ -14,12 +14,12 @@
 #    along with this program.  If not, see http://www.gnu.org/licenses/
 
 bl_info={
-        "name":"Glycogen Analysis",
-        "author":"Heikki Lehvaeslaiho, Corrado Cali, Jumana Baghabra, Daniya Boges",
-        "version":"1.0",
-        "location":"VIEW3D UI > Glycogen Analysis",
-        "description":"Glycogen Analysis (clustering + Measurements + calculate Dbscan Optimum values)",
-        "category":"objects"
+		"name":"Glycogen Analysis",
+		"author":"Heikki Lehvaeslaiho, Corrado Cali, Jumana Baghabra, Daniya Boges",
+		"version":"1.0",
+		"location":"VIEW3D UI > Glycogen Analysis",
+		"description":"Glycogen Analysis (clustering + Measurements + calculate Dbscan Optimum values)",
+		"category":"objects"
 }
 import bpy
 from bpy.props import*
@@ -42,7 +42,9 @@ import time
 
 import os
 from os.path import expanduser
-import time
+import math
+import mathutils
+
 #---------------------------------------------------------------------------------
 # 	  					# INFO TEXTS #
 #---------------------------------------------------------------------------------
@@ -132,7 +134,7 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 			bpy.types.Scene.glycogen_verts_np = np.array([])
 			bpy.types.Scene.neur_obj_verts_np = np.array([])
 			bpy.types.Scene.neur_obj_attrib_np = np.array([])
-
+			
 			bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = {}
 			bpy.types.Scene.neuro_glyList_dict = {}
 
@@ -311,6 +313,7 @@ def func_toGlobal_coords(ob): #NOT USED
 				bpy.types.Scene.data_obj_coords.append([ob.name, ob.parent.name , str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
 	
 def populate_glycogen_coords():
+	# update3/3/15: adding granule dimension size
 	func_unhide()
 	func_unselect()
 	selected = func_select("Glycogen")
@@ -319,73 +322,326 @@ def populate_glycogen_coords():
 
 	for ob in selected:
 		if ob.parent is None:
-			bpy.types.Scene.data_obj_coords.append([ob.name, 'none', str(ob.location.x),str(ob.location.y),str(ob.location.z)])
+			bpy.types.Scene.data_obj_coords.append([ob.name, 'none', str(ob.location.x),str(ob.location.y),str(ob.location.z),str(ob.dimensions.x)])
 		else:
-			bpy.types.Scene.data_obj_coords.append([ob.name, ob.parent.name , str(ob.location.x),str(ob.location.y),str(ob.location.z)])
+			bpy.types.Scene.data_obj_coords.append([ob.name, ob.parent.name , str(ob.location.x),str(ob.location.y),str(ob.location.z),str(ob.dimensions.x)])
 
-def glyc_toGlobal_coords(ob,objs_attrib,objs_verts):
-    coord_matrix = ob.matrix_world
-    for v in ob.data.vertices:
-        loc = v.co
-        globalCoords = coord_matrix *loc
-        #n = ob.name.rsplit('_',1)
-        if ob.parent is None:
-            objs_attrib.append([ob.name, "None"])#n[0]
-            objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
-        else:
-            objs_attrib.append([ob.name,ob.parent.name])
-            objs_verts.append([str(globalCoords.x),str(globalCoords.y),str(globalCoords.z)])
-    return(objs_attrib,objs_verts)
+"""------ NEURO_MORPH --------"""
+def cross_product(v0, v1):
+    x =   v0[1]*v1[2] - v0[2]*v1[1]
+    y = -(v0[0]*v1[2] - v0[2]*v1[0])
+    z =   v0[0]*v1[1] - v0[1]*v1[0]
+    return [x,y,z]
+def dot_product(v0,v1):
+    vec = [v0[n]*v1[n] for n in range(len(v0))]
+    return sum(vec)
+# get area of single triangle
+def get_area_tri(tri):
+    # tri = [p0, p1, p2]
+    p0 = tri[0]
+    p1 = tri[1]
+    p2 = tri[2]
+    area = mathutils.geometry.area_tri(p0, p1, p2)
+    return area
+# get signed volume contribution from single triangle
+def get_vol_tri(tri):  
+    # tri = [p0, p1, p2],  pn = [x, y, z]
+    p0 = tri[0]
+    p1 = tri[1]
+    p2 = tri[2]
+    vcross = cross_product(p1,p2)
+    vdot = dot_product(p0, vcross)
+    vol = vdot/6
+    return vol
+
+def fget_SA(this_ob):
+    obj = this_ob.data
+    if hasattr(obj, 'polygons'):
+        n_faces = len(obj.polygons)
+        SA = 0
+        for f in range(0, n_faces):
+            n_vertices = len(obj.polygons[f].vertices[:])
+            if n_vertices != 3:  # faces must be triangles
+                return 'highlight a subregion'
+            tri = [0] * n_vertices
+            for v in range(0, n_vertices):
+                tri[v] = obj.vertices[obj.polygons[f].vertices[v]].co
+            SA += get_area_tri(tri)
+        return SA
+    else:
+        return 'property not available'
+def fget_vol(this_ob):
+    obj = this_ob.data
+    if hasattr(obj, 'polygons'):
+    	# dani: this part is commented out, as we allready have solid objects that are meant to be measured for volume
+        # if mesh not closed, don't calculate volume
+        #if this_ob.is_open:
+        #    return 'open mesh has no volume'
+        #else:
+        n_faces = len(obj.polygons)
+        vol = 0
+        for f in range(0, n_faces):
+            n_vertices = len(obj.polygons[f].vertices[:])
+            if n_vertices != 3:  # faces must be triangles
+                for v in range(0, n_vertices):
+                    return 'highlight a subregion'
+            tri = [0] * n_vertices
+            for v in range(0, n_vertices):
+                tri[v] = obj.vertices[obj.polygons[f].vertices[v]].co
+            vol += get_vol_tri(tri)
+        return vol
+    else:
+        return 'property not available'
+# these functions need to exist but are not used
+def fset_vol(self, value):
+    self.vol = -1
+def fset_SA(self, value):
+    self.SA = -1
+"""----------end--------------"""
+def paths():
+    # RELEASE SCRIPTS: official scripts distributed in Blender releases
+    addon_paths = bpy.utils.script_paths("addons")
+
+    # CONTRIB SCRIPTS: good for testing but not official scripts yet
+    # if folder addons_contrib/ exists, scripts in there will be loaded too
+    addon_paths += bpy.utils.script_paths("addons_contrib")
+
+    # EXTERN SCRIPTS: external projects scripts
+    # if folder addons_extern/ exists, scripts in there will be loaded too
+    addon_paths += bpy.utils.script_paths("addons_extern")
+
+    return addon_paths
+
+
+def glyc_toGlobal_coords(ob_index,objs_attrib,objs_verts,objs_surf,objs_solids,kwords_flg):
+	# for boutons and spines case: surf_areas will be calculated from surfs, volume from solids or vols
+	# we check if neuro_morph is uploaded (recommended), otherwise, we compute the two values 
+	path_list = paths()
+
+	for path in path_list:
+		for mod_name, mod_path in bpy.path.module_names(path):
+			if mod_name == 'NeuroMorph Measurement Tools:  Submesh Volume, Surface Area, and Length':
+				surf_are_time_start = time.time()
+				# SA and VOl computed from neuroMorph
+				bpy.tyeps.Scene.surf_area = objs_surf[ob_index].SA
+				bpy.types.Scene.volume = objs_solids[ob_index].vol
+				break
+			else:
+				surf_are_time_start = time.time()
+				bpy.types.Scene.surf_area = fget_SA(objs_surf[ob_index])#property(fget_SA, fset_SA)
+				bpy.types.Scene.volume = fget_vol(objs_solids[ob_index])
+				break
+	
+	coord_matrix = objs_surf[ob_index].matrix_world
+	# print(objs_surf[ob_index], 'sa', bpy.types.Scene.surf_area, 'vol', bpy.types.Scene.volume)
+
+	# this loop and saves all vertices for one object
+	for v in objs_surf[ob_index].data.vertices:
+		loc = v.co
+		globalCoords = coord_matrix *loc
+		#object has no parent
+		if objs_surf[ob_index].parent is None:
+			objs_verts.append([str(globalCoords.x)
+				,str(globalCoords.y)
+				,str(globalCoords.z) ])
+			# object is a bouton/spine
+			if kwords_flg:
+				objs_attrib.append([objs_surf[ob_index].name
+					,'None'
+					, bpy.types.Scene.surf_area
+					, bpy.types.Scene.volume ])
+			# object is endo or pericyte
+			else:
+				obj = ob_index #for non bouton/spine objects, the ob_index is actually an object. so we correct variable name to obj
+				objs_attrib.append([obj.name,'None'])
+		# object has a parent
+		else:
+			objs_verts.append([str(globalCoords.x)
+					,str(globalCoords.y)
+					,str(globalCoords.z) ])
+			if kwords_flg:
+				objs_attrib.append([objs_surf[ob_index].name
+					,objs_surf[ob_index].parent.name
+					,bpy.types.Scene.surf_area
+					,bpy.types.Scene.volume ])
+			else:
+				obj = ob_index
+				objs_attrib.append([obj.name, obj.parent.name])
+				
+	return(objs_attrib,objs_verts)
 
 # getVertices will seperate vertices from attributes
 def getVertices(pattern,coords_type): 
-    func_unhide()
-    func_unselect()
-    selected_objects = []
-    objs_attrib = [] #either name, parent or just name
-    objs_verts = []
-    objs_attrib_matrix = []
-    objs_verts_matrix = []
-    kwords = ['bouton','buoton','spine','Bouton','Spine']
+	func_unhide()
+	func_unselect()
+	# These lists used to Store Entire Objects, not just names
+	selected_objects = [] #glycogen usualy
+	selected_objects_solids=[] #
+	selected_objects_surfs=[] # Those 3 should all be with the same length, stores boutons and spines
+	
+	objs_attrib = [] #either name, parent or just name
+	objs_verts = []
+	objs_attrib_matrix = []
+	objs_verts_matrix = []
+	kwords = ['bouton','spine','Bouton','Spine']
+	kwords_flg = False
 
-    for ob in bpy.data.objects:
-        if ob.type !='MESH':
-            continue
-        if pattern in kwords:
-        	match1 = re.search('.surf*', ob.name)# '*' 0 or more repetition
-        	if not match1:#prints None when no match
-        		continue
-        
-        match = re.search(pattern+'*', ob.name)
-        if not match:
-            ob.hide = True
-            continue
-        else:
-        	ob.select = True
-        	selected_objects.append(ob)
- 
-    if selected_objects and coords_type == "Center Vertices":
-        func_median_location(selected_objects)
-        
-        for ob in selected_objects:
-        	#if ob.name == 'Glycogen': 
-            #    continue
-            #n = ob.name.rsplit('_',1) lets not change data untill export time
-            if ob.parent is None:
-                objs_attrib.append([ob.name,"None"])
-                objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
-            else:
-                objs_attrib.append([ob.name,ob.parent.name]) #n[0]
-                objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
+	if pattern in kwords:
+		kwords_flg = True #This category has an area and volume (for spines and boutons)
+	
+	#================ storing objects ===================
+	for ob in bpy.data.objects:
+		if ob.type != 'MESH': #only taking MESHS
+			continue
+		if kwords_flg:
+			#for every surf there's either a solid or vol object
+			if re.search(pattern+'.*surf*', ob.name):
+				ob.select=True
+				selected_objects_surfs.append(ob)
+				# search in children list of that object's parent. to extract solids or volume objects
+				for child in ob.parent.children:
+					# there can either be a solid or vol per parent. not correct to have both
+					one_word=ob.name.rsplit('_',1)
+					if re.search(one_word[0]+ '.*solid*' + '|' + one_word[0] + '.*volu*', child.name):
+						selected_objects_solids.append(child)
+						break
+			else:
+				ob.hide=True
+				continue
+		else:
+			# neither bouton nor spine
+			if re.search(pattern+'*', ob.name):
+				ob.select = True
+				selected_objects.append(ob)
+			else:
+				ob.hide=True
+				continue
+	#====================================================
+	
+	# total SOLID/VOLUME OBJECTS = total SURF OBJECTS
+	if selected_objects:
+		print("selected_objects",len(selected_objects), selected_objects[0])
+	if selected_objects_solids:
+		print("selected_objects_solids",len(selected_objects_solids),selected_objects_solids[0])
+	if selected_objects_surfs and selected_objects_solids:
+		print("selected_objects_surfs",len(selected_objects_surfs),selected_objects_surfs[0])
+	
+	#================ vertices/attributes ===================
 
-    elif selected_objects and coords_type == "All Vertices":
-        for ob in selected_objects:
-            objs_attrib,objs_verts =glyc_toGlobal_coords(ob,objs_attrib,objs_verts)
+	if bpy.context.scene.prop_bool_glycogen:
+		
+		if selected_objects and coords_type == "Center Vertices":
+			# usual case for glycogens
+			# we need to get size dimensions per granule
+			func_median_location(selected_objects)
+			for ob in selected_objects:
+				objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
+				if ob.parent is None:
+					objs_attrib.append([ob.name, 'None', ob.dimensions.x])
+				else:
+					objs_attrib.append([ob.name, ob.parent.name , ob.dimensions.x])
+				
+		elif coords_type == 'All Vertices':
+			# usual case for Endos and Pericytes and boutons and spines
+			if kwords_flg and selected_objects_surfs:
+				time_for_getting_solid_objects=time.time()
+				# we take the index
+				for ob_index in range(len(selected_objects_surfs)):
+					objs_attrib, objs_verts = glyc_toGlobal_coords(ob_index
+						,objs_attrib
+						,objs_verts
+						,selected_objects_surfs
+						,selected_objects_solids
+						,kwords_flg)
+				print("getting solids/vols for ",pattern, 'Done in:', time.time()-time_for_getting_solid_objects)
+			# case for Endo's and Pericytes ==> needs testing after update
+			elif not kwords_flg and selected_objects:
+				for ob in selected_objects:
+					objs_attrib, objs_verts = glyc_toGlobal_coords(ob
+						,objs_attrib
+						,objs_verts
+						,[]
+						,[]
+						,kwords_flg)
+		#========================================================
 
-    if pattern in kwords:
-    	print(pattern,'with objs_attrib (surf) length:', len(objs_attrib))
-    
-    return(np.array(objs_attrib),np.array(objs_verts))
+	elif  bpy.context.scene.prop_bool_clusters:
+
+		if selected_objects_surfs and selected_objects_solids and coords_type == "Center Vertices":
+			# usual case for spines and boutons
+			if kwords_flg and selected_objects_surfs:
+				is_neuro_morpth = False
+				path_list = paths()
+
+				# ----------- checking for neuro morph -------
+				for path in path_list:
+					for mod_name, mod_path in bpy.path.module_names(path):
+						if mod_name == 'NeuroMorph Measurement Tools:  Submesh Volume, Surface Area, and Length':
+							is_neuro_morpth = True
+							break
+				# --------------------------------------------
+				func_median_location(selected_objects_surfs)
+				for ob in selected_objects_surfs:
+					objs_verts.append([str(ob.location.x)
+						,str(ob.location.y)
+						,str(ob.location.z)])
+					if is_neuro_morpth:
+						bpy.types.Scene.surf_area = ob.SA
+						bpy.types.Scene.volume = ob.vol
+					else:
+						bpy.types.Scene.surf_area = fget_SA(ob)
+						bpy.types.Scene.volume = fget_vol(ob)	
+					if ob.parent is None:
+						objs_attrib.append([ob.name
+							,'None'
+							, bpy.types.Scene.surf_area
+							, bpy.types.Scene.volume ])
+					else:
+						objs_attrib.append([ob.name
+							, ob.parent.name
+							, bpy.types.Scene.surf_area
+							, bpy.types.Scene.volume ])
+			# case for Endo's and Pericytes ==> needs testing after update
+			#elif not kwords_flg and selected_objects:
+			#	for ob in selected_objects:
+			#		objs_attrib, objs_verts = glyc_toGlobal_coords(ob
+			#			,objs_attrib
+			#			,objs_verts
+			#			,[]
+			#			,[]
+			#			,kwords_flg)
+
+	return(np.array(objs_attrib),np.array(objs_verts))
+
+def get_solid_objects(childWparentList):
+	list_result = []
+	printout=[]
+	found = False
+	for child, parent in childWparentList:
+		found = False
+		n = child.rsplit('_',1)#take the frist syllabes. e.g., bouton1_surf.059. we take bouton1_ only
+		
+		for this_child in bpy.data.objects[parent].children:
+			match=re.search(n[0]+'.solid*'+'|'+ n[0]+'.volu*', this_child.name)# '*' 0 or more repetition
+			if match:
+				#print('this_child, parent',this_child.name, parent)
+				list_result.append([this_child.name, parent])
+				found = True
+				break
+
+		if not found:
+			printout.append(parent)
+	
+	print4check(printout)
+	return list_result
+
+def print4check(lista):
+	templist=[]
+	countInstances = Counter(lista) #countInstances is a dictionary
+	#{'listItem': itemfreq()...}
+	for neur_obj_name, instances in countInstances.items():
+		templist.append([neur_obj_name,instances])
+	print('missed solids:',templist)
 
 def get_closest_distance(first_verts, second_verts):
 	closests_points_info = []
@@ -402,11 +658,12 @@ def get_closest_distance(first_verts, second_verts):
 	a = np.vstack(dist)
 	b = np.vstack(indexes)
 	c = np.hstack((b,a))
-
+	#[index(glycogen#),objectindex,distance]?
 	for i in range(0,len(c)):
 		closests_points_info.append([i, c[i,0] , c[i,1]])
 	
 	return closests_points_info
+
 
 #---------------------------------------------------------------------------------
 # 	  								GLYCOGEN
@@ -440,17 +697,22 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		firstTime = True
 
 		for patt in patterns:
+			print("getting vertices for: ", patt)
 			temp_attrib_np, temp_verts_np = getVertices(patt, "All Vertices")
 			if temp_attrib_np.size:
-					print("getting vertices for: ", patt)
-					if firstTime:
-						bpy.types.Scene.neur_obj_verts_np = temp_verts_np
-						bpy.types.Scene.neur_obj_attrib_np = temp_attrib_np
-						firstTime = False
-						#to set the big array to same dimensions of concatinated arrays
-					else:
-						bpy.types.Scene.neur_obj_attrib_np =np.concatenate((bpy.types.Scene.neur_obj_attrib_np, temp_attrib_np),axis=0)
-						bpy.types.Scene.neur_obj_verts_np = np.concatenate((bpy.types.Scene.neur_obj_verts_np, temp_verts_np),axis=0)
+				if firstTime:
+					bpy.types.Scene.neur_obj_verts_np = temp_verts_np
+					bpy.types.Scene.neur_obj_attrib_np = temp_attrib_np
+					firstTime = False
+					#to set the big array to same dimensions of concatinated arrays
+				else:
+					bpy.types.Scene.neur_obj_attrib_np =np.concatenate((bpy.types.Scene.neur_obj_attrib_np, temp_attrib_np),axis=0)
+					bpy.types.Scene.neur_obj_verts_np = np.concatenate((bpy.types.Scene.neur_obj_verts_np, temp_verts_np),axis=0)
+
+		print("this attrib: size ",patt,bpy.types.Scene.neur_obj_attrib_np.size)
+		print("this attrib: len ",patt,len(bpy.types.Scene.neur_obj_attrib_np))
+		print("this vertices: size ",patt,bpy.types.Scene.neur_obj_verts_np.size)
+		print("this vertices: len ",patt,len(bpy.types.Scene.neur_obj_verts_np))
 
 		if bpy.types.Scene.neur_obj_attrib_np.size:
 			bpy.types.Scene.data_glyc_distances = get_closest_distance(bpy.types.Scene.glycogen_verts_np, bpy.types.Scene.neur_obj_verts_np)
@@ -480,7 +742,7 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		enum2 = [] #associated granules (dropdown)
 
 		''' we need proper data strcuture for: neural strcure (dropdown), associated granules (dropdown),
- 		NoGranules (Textbox), distance (Textbox)'''
+		NoGranules (Textbox), distance (Textbox)'''
 		for neural_obj_name, noOfGlycogens in bpy.types.Scene.data_glyc_distances_occur:
 			bpy.types.Scene.data_glyc_neighbours.append(neural_obj_name)
 			bpy.types.Scene.data_noOfGlyc.append(noOfGlycogens)
@@ -532,31 +794,60 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 
 	def occurences(self):
 		objects_names=[]
-		#for the glycogen occurance output UIdropdownList:
-		gly_names=[] 
-		bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = {} #used for data export
+		objects_SA_vol=[]
+		gly_names=[]
+		gly_sizes=[]
+
+		bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = {} # shoud be used for data export
 		bpy.types.Scene.neuro_glyList_dict = {} #used for UI display (a group by done on 'sorted')
-		dict_temp = {}
+		dict_temp1 = {} # needed to sort data by object name, result in bpy.types.Scene.neuro_gly_glyFreq_dic_sorted
+		bpy.types.Scene.dict_temp2= {} # stores glynames with sizes {key:glyname,val:glysize}
+		bpy.types.Scene.dict_temp3= {} # stores objectsNames with sa and vol {key:objName,val:<sa, vol>}
+		
+		### +++++ all datastructures indexes correspond with the main glycogen index++++++ ####
 		
 		closest_points_np = (np.array(bpy.types.Scene.data_glyc_distances)).astype(int)
-		
 		for k in range(0, len(closest_points_np)):
+			#store closests neighbours (parent  child)
 			objects_names.append(" ".join
 				((
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],0],
 					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],1]
 				))
 				)#join (object name, parent) with a " " between them
+
+			#store size for each glycogen
 			gly_names.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],0])
-		#end loop
-		
+			gly_sizes.append(bpy.types.Scene.glycogen_attrib_np[closest_points_np[k,0],2]) #indx 1 is the parent
+			
+		#this object is either a spine or bouton, has a surface area and volume attributes
+		#store volume and surface area
+			if bpy.types.Scene.neur_obj_attrib_np.shape[1] == 4:
+				objects_SA_vol.append(" ".join
+					((
+					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],2],
+					bpy.types.Scene.neur_obj_attrib_np[closest_points_np[k,1],3]
+					))
+					)
+		print('len(objects_names)',len(objects_names))
+		print('len(gly_names)',len(gly_names))
+		print('len(objects_SA_vol', len(objects_SA_vol))
+
+		if not objects_names or not gly_names or not objects_SA_vol:
+			print('error, faulty array - occurences function- closest neighbours glycoges')
+
 		'''now we can create dictionary from obj&gly names:'''
+		''' one nested dictionary () '''
 		for i in range(0,len(gly_names)):
 			#the below method in populating dictionaries will perform (itemfreq) on objects names so that it will not duplicate keys (robust?)
-			dict_temp[gly_names[i]] = objects_names[i]
-
+			dict_temp1[gly_names[i]] = objects_names[i] #we only need to sort this
+			bpy.types.Scene.dict_temp2[gly_names[i]] = gly_sizes[i] #public
+			
+			#we need {objects_names, objects_SA_Vol} without repetition, its len < len(glycogens). wrong to place it in a glyocgen loop
+			bpy.types.Scene.dict_temp3[objects_names[i]] = objects_SA_vol[i] #public
+		
 		#sort the dictionary:b = OrderedDict(sorted(a.items()))
-		bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = OrderedDict(sorted(dict_temp.items(), key=lambda val: val[1])) #checked
+		bpy.types.Scene.neuro_gly_glyFreq_dic_sorted = OrderedDict(sorted(dict_temp1.items(), key=lambda val: val[1])) # sort by neural object name
 
 		#now we need to group glycogens in a list per neuro
 		#===============================================
@@ -572,8 +863,8 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 				templist1 = []
 				templist1.append(glyname)
 		bpy.types.Scene.neuro_glyList_dict[current_neuro]=templist1 #store last list, as loop finishes before it gets to store it in'else'
+		
 		#===============================================
-
 		#now we count instances of glycogens per neuro object closests to it
 		templist=[]
 		countInstances = Counter(objects_names) #countInstances is a dictionary
@@ -583,7 +874,8 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 
 		return templist
 
-#+++++++ UIList Gadget ++++++++
+
+#=========+++++++ UIList Gadget +++++++===========+
 # Custom properties, will be saved with .blend file.
 class PG_List_Entry(bpy.types.PropertyGroup):
 	li_glyc_neighbours = StringProperty(name="Object Name")
@@ -671,6 +963,7 @@ class VIEW3D_OT_display_selected(bpy.types.Operator):
 		bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN') 
 	#---------------#
 	def invoke(self, context, event):
+		# update3/3/15: adding granule dimension size
 		self.func_unhide()
 		self.func_unselect()
 		pattern = str(bpy.context.scene.prop_obj_names)
@@ -680,11 +973,15 @@ class VIEW3D_OT_display_selected(bpy.types.Operator):
 
 		for ob in selected:
 			if ob.parent is None:
-				bpy.types.Scene.data_obj_coords.append([ob.name, 'none', str(ob.location.x),str(ob.location.y),str(ob.location.z)])
+				if bpy.context.scene.prop_obj_names == "Glycogen":
+					bpy.types.Scene.data_obj_coords.append([ob.name, 'none', str(ob.location.x),str(ob.location.y),str(ob.location.z),str(ob.dimensions.x)])
+				else:
+					bpy.types.Scene.data_obj_coords.append([ob.name, 'none', str(ob.location.x),str(ob.location.y),str(ob.location.z)])
 			else:
-				bpy.types.Scene.data_obj_coords.append([ob.name, ob.parent.name , str(ob.location.x),str(ob.location.y),str(ob.location.z)])
-
-		
+				if bpy.context.scene.prop_obj_names == "Glycogen":
+					bpy.types.Scene.data_obj_coords.append([ob.name, ob.parent.name , str(ob.location.x),str(ob.location.y),str(ob.location.z), str(ob.dimensions.x)])
+				else:
+					bpy.types.Scene.data_obj_coords.append([ob.name, ob.parent.name , str(ob.location.x),str(ob.location.y),str(ob.location.z)])
 		return{"FINISHED"}
 #--------------------------------------------------------------------------------
 #									CLUSTERS
@@ -702,7 +999,7 @@ class OBJECTS_OT_calculate_clustering_param(bpy.types.Operator):
 		bpy.types.Scene.data_nclusters = [] #initialise container with each new request
 		bpy.types.Scene.data_epsx_list = []
 
-		if not bpy.context.scene.data_obj_coords:
+		if not bpy.context.scene.data_obj_coords:#if its empty, fill it will glycogens info
 			populate_glycogen_coords()
 		elif bpy.context.scene.prop_obj_names != "Glycogen" or bpy.context.scene.prop_obj_names != "Glycogen.":
 			populate_glycogen_coords()
@@ -720,8 +1017,8 @@ class OBJECTS_OT_calculate_clustering_param(bpy.types.Operator):
 		for x in np.arange(bpy.context.scene.prop_eps1, bpy.context.scene.prop_eps2, bpy.context.scene.prop_interval):
 			db = DBSCAN(eps=x, min_samples=bpy.context.scene.prop_min_samples).fit(np_points)
 			core_samples = db.core_sample_indices_
-
 			labels = db.labels_
+
 			no_clusters = len(set(labels)) - (1 if -1 in labels else 0)
 			sil_index = metrics.silhouette_score(np_points, labels)#sillohouette coeffecient			
 			print('%0.2f 	%2d		%+0.3f' %(x, no_clusters,sil_index))
@@ -893,6 +1190,10 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		bpy.types.Scene.flag_clusters_measure = True
 		bpy.types.Scene.flag_clusters_measured = False
 
+		# hiding relationship lines if they're ON
+		self.relationship_lines_off()
+		# self.relationship_lines_off doesnt work without bracekts in python3, doesnt give an error either!
+
 		return{"FINISHED"}
 
 	## Get Glycogen Layer ##
@@ -1039,6 +1340,14 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 						ob.select = True
 						bpy.ops.object.parent_set(type='OBJECT')
 
+	def relationship_lines_off(self):
+		for area in bpy.context.screen.areas:
+			print(area.type)
+			if area.type == 'VIEW_3D':
+				print('relationship lines are ',area.spaces[0].show_relationship_lines, 'will be switched off now')
+				if area.spaces[0].show_relationship_lines:
+					area.spaces[0].show_relationship_lines = False
+
 	#def init(self):
 	#	bpy.types.Scene.data_glyc_clusters = []
 		
@@ -1052,6 +1361,7 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 	"""	
 	def invoke(self,context,event):
 		#self.initialise()
+		bpy.types.Scene.dict_nobj_sa_vol = {}
 		#1-compute clusters centroids:
 		bpy.types.Scene.data_clusters_centroids = self.get_clusters_centroids()
 		#2-compute distances between cluster centroid and rest of neural objects vertices
@@ -1077,8 +1387,8 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		firstTime = True
 		if patterns:
 			for patt in patterns:
+				print("getting Center vertices for: ", patt)
 				temp_attrib_np, temp_verts_np = getVertices(patt, "Center Vertices")
-				#print("getting Center vertices for: ", pattern)
 				print("temp_attrib_np.shape for ",patt,temp_attrib_np.shape)
 				print("temp_verts_np.shape for ",patt, temp_verts_np.shape)
 				
@@ -1109,6 +1419,19 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 					bpy.types.Scene.neur_obj_attrib_np[objctsIndx,1],
 					dist
 					])
+				#create dictionary of:{key: <neuro objects>, value:<surface area & volume >} Join(parent&child)
+				if bpy.types.Scene.neur_obj_attrib_np.shape[1]== 4:
+					nobj_par_child= " ".join((
+						bpy.types.Scene.neur_obj_attrib_np[objctsIndx,0],
+						bpy.types.Scene.neur_obj_attrib_np[objctsIndx,1]
+						))
+					nobj_sa_vol= " ".join((
+						bpy.types.Scene.neur_obj_attrib_np[objctsIndx,2],
+						bpy.types.Scene.neur_obj_attrib_np[objctsIndx,3]
+						))
+
+					bpy.types.Scene.dict_nobj_sa_vol[nobj_par_child] = nobj_sa_vol
+
 				print(
 					[np.array(bpy.types.Scene.data_clusters_centroids)[clusterId,0],
 					np.array(bpy.types.Scene.data_clusters_centroids)[clusterId,4],
@@ -1147,7 +1470,7 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		#occrences will give the total number of how many times each value occured 
 		#e.g.,
 		""" array([[ 0, 17],
-       			  [ 1, 16]])  
+				  [ 1, 16]])  
 		"""
 		for i in occurences:
 			indexes = np.where(clsLbls == i[0])
@@ -1157,7 +1480,7 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		return cls_centroids
 	
 
-class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
+class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):#tryout
 	bl_idname="objects.export_clusters_measures"
 	bl_label= "write data to file"
 	
@@ -1171,46 +1494,74 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 		the_name = os.path.join(directory, fname)
 		
 		if bpy.context.scene.prop_bool_clusters == True:
+			#bpy.types.Scene.dict_nobj_sa_vol[nobj_par_child] = nobj_sa_vol
 			print("writing data of [clusters centroids to spine-bouton centroids] distances")
 			with open(the_name,'wt') as output:
 				writer = csv.writer(output, delimiter='\t')
-				writer.writerow(['CId','#granules','ObjectName','ObjectParent', 'Distance'])
-				rowToWrite = []
+				writer.writerow(['CId','#granules','ObjectName','ObjectParent','surface area','volume', 'Distance'])
+				
 				for CId, CCentroid,ObjectName,ObjectParent, Distance in bpy.types.Scene.data_clusters_distances:
 					n = ObjectName.rsplit('_',1)
+					if bpy.types.Scene.dict_nobj_sa_vol[' '.join((ObjectName,ObjectParent))]:
+						surfAreaVolume = bpy.types.Scene.dict_nobj_sa_vol[' '.join((ObjectName,ObjectParent))].rsplit(' ',1)
+					else:
+						surfAreaVolume=[0,0]
+						print('error: no parent-child key found in dict_nobj_sa_vol')
 					if not n:
 						n[0]='Error splitting name'
-					writer.writerow([CId, CCentroid,n[0],ObjectParent, Distance])
-		
+					writer.writerow([CId
+						, CCentroid
+						,n[0]
+						,ObjectParent
+						,surfAreaVolume[0]
+						,surfAreaVolume[1]
+						, Distance])
 		elif bpy.context.scene.prop_bool_glycogen == True:
 			print("writing data of [glycogen to closests neighbors objects- distances]")
 			with open(the_name,'wt') as output:
 				writer = csv.writer(output, delimiter='\t')
-				writer.writerow(['Neural Object','Parent','No.Associated Glycogens','Glycogen Names','Distance'])
+				#writer.writerow(['Neural Object','Parent','No.Associated Glycogens','Glycogen Names','Distance','SurfArea','Volume','Size'])
+				writer.writerow(['Neural Object'
+					,' --- Parent---'
+					, '---SurfArea---'
+					,'---Volume---'
+					,'----No.Associated Glycogens----'
+					,'----Glycogen Names----'
+					,'----Size----'
+					,'----Distance----',])
 
-				rowToWrite = []
+				#rowToWrite = []
 				for neurObj, glyList in bpy.types.Scene.neuro_glyList_dict.items():
 					child_parent = neurObj.rsplit(' ',1)
-					child = child_parent[0].rsplit('_',1)
+					child = child_parent[0].rsplit('_',1) #taking out surf*,vol*,solid* strings from names
+					if bpy.types.Scene.dict_temp3[neurObj]:
+						sa_vol = bpy.types.Scene.dict_temp3[neurObj].rsplit(' ',1)
+						surf_area = sa_vol[0]
+						volume = sa_vol[1]
+					else:
+						surf_area = "error in bpy.types.Scene.dict_temp3, neurnal object not found"
 					if not child:
 						child[0] = 'error splitting object name'
 					writeOnce = True
 					
 					for glyName in glyList:
 						gdistance = [dist for gname, dist in bpy.types.Scene.data_glyc_to_neighb_dist if gname == glyName]
+						if bpy.types.Scene.dict_temp2[glyName]:
+							gly_size = bpy.types.Scene.dict_temp2[glyName]
+						else:
+							print('error in bpy.types.Scene.dict_temp2, glyname not found in dictionary')
 						if gdistance:
 							if writeOnce:
-								writer.writerow([child[0], child_parent[1], len(glyList), glyName, gdistance[0]])# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
+								writer.writerow([child[0], child_parent[1], surf_area, volume, len(glyList), glyName, gly_size, gdistance[0]])# gidstance[0]=0.091054856874, gdistance=[0.091054856874324699]
 								writeOnce = False
 							else:
-								writer.writerow([ child[0], child_parent[1], 0 , glyName, gdistance[0]])
+								writer.writerow([child[0], child_parent[1], surf_area, volume, 0, glyName, gly_size, gdistance[0]])
 		return{"FINISHED"}
 	def invoke(self,context,event):
 		#print("bpy.context.scene.prop_bool_clusters",bpy.context.scene.prop_bool_clusters)
 		WindowManager = context.window_manager
 		WindowManager.fileselect_add(self)
 		return{"RUNNING_MODAL"}
-
 #--------------------------------------------------------------------------------
 #                                   PANEL LAYOUT
 #--------------------------------------------------------------------------------
