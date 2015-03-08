@@ -299,7 +299,7 @@ def func_median_location(selected):
 		if(thisObjLayer):
 			layer_indx = thisObjLayer[0]
 			bpy.context.scene.layers[layer_indx] = True #this will set workspace at THIS layer
-			break
+			#break
 	bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
 
 def func_toGlobal_coords(ob): #NOT USED
@@ -601,6 +601,7 @@ def getVertices(pattern,coords_type):
 							, ob.parent.name
 							, bpy.types.Scene.surf_area
 							, bpy.types.Scene.volume ])
+				print(objs_verts)
 			# case for Endo's and Pericytes ==> needs testing after update
 			#elif not kwords_flg and selected_objects:
 			#	for ob in selected_objects:
