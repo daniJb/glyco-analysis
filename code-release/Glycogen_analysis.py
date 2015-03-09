@@ -392,6 +392,18 @@ def fget_vol(this_ob):
         return vol
     else:
         return 'property not available'
+''' 
+# determine if object is open or closed
+bpy.ops.object.mode_set(mode='EDIT')
+bpy.ops.mesh.region_to_loop()
+bpy.ops.object.mode_set(mode='OBJECT')
+bdry_edges = [edge for edge in bpy.context.active_object.data.edges if edge.select]
+n_bdry_edges = len(bdry_edges)
+if n_bdry_edges > 0:
+  new_obj.is_open = 1
+else:
+  new_obj.is_open = 0
+'''
 # these functions need to exist but are not used
 def fset_vol(self, value):
     self.vol = -1
@@ -964,9 +976,9 @@ class VIEW3D_OT_display_selected(bpy.types.Operator):
 		bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN') 
 	#---------------#
 	def invoke(self, context, event):
-		# update3/3/15: adding granule dimension size
-		self.func_unhide()
-		self.func_unselect()
+		# update 3/3/15: adding granule dimension size
+		func_unhide() # self.func_unhide()
+		func_unselect() # self.func_unselect() --> redundant code
 		pattern = str(bpy.context.scene.prop_obj_names)
 		selected = self.func_select(pattern)
 		bpy.types.Scene.data_obj_coords = [] #initliazed with each click		
@@ -1481,7 +1493,7 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		return cls_centroids
 	
 
-class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):#tryout
+class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):
 	bl_idname="objects.export_clusters_measures"
 	bl_label= "write data to file"
 	
@@ -1563,6 +1575,74 @@ class OBJECTS_OT_export_clusters_measures(bpy.types.Operator):#tryout
 		WindowManager = context.window_manager
 		WindowManager.fileselect_add(self)
 		return{"RUNNING_MODAL"}
+
+
+#--------------------------------------------------------------------------------
+#							VISUALIZATION PANEL
+#--------------------------------------------------------------------------------
+# update 8/Mar/15: adding synapses special select
+'''
+1- load default visualization panel:
+ 1.1 read/parse synapses, select/parse * object where object = synapse
+ 1.2 store parsed information into list, parsed information rules:
+ 1.2.1 this is in order to know which dendrite-spine and which axon-bouton this synapse is forming by, and this can be recognised from the string name
+ of that synapse:
+ Syn_D067s01A276b01_E
+ Syn_D066s01A272b01_I
+ Syn_D046s02Axxxbxx_U
+
+ 1-1 Load all ( synapses + dendrites + axons + spine + bouton) into UIlist as single string seperated by spaces
+ 1.2 UIlist selection should correspond with veiw3d:
+   1.2.1 hide all
+   1.2.2 unselect all 
+   1.2.3 multiple select():
+   	1.2.3.1 split UIlist option by its spaces: for each object, unhide,select,
+ 1.3 Done
+
+2- if glycogen_bool == True:
+ 2.1 load boutons,spines from glycogen_nearest_neighbour list or dictionary. Glycogen list will be in the background but loaded as user selectes.
+ 2.2 UIlist selection should correspond with view3d:
+  2.2.1 hide all
+  2.2.2 unselect all
+  2.2.3 multiple select():
+   2.2.3.1 
+'''
+def visualization():
+		self.func_unhide()
+		self.func_unselect()
+		pattern = str(bpy.context.scene.prop_obj_names)
+
+		if re.search('syn.*', pattern):
+			parsed_synapse = [] # its a synapse, an axon and a dendrite
+			parsed_synapse = self.func_synapse_parse(pattern)
+			
+			for objectname in parsed_synapse:
+				selected = func_select(objectname)
+
+		
+
+		if re.search('ellipsoid.*', pattern):
+			parsed_ellipsoid = [] # its an ellipsoids, a fake object, a set of granules, and one neuronal object which is the closest neighbouring cell
+			parsed_ellipsoid = self.func_ellipsoids_parse(pattern)
+
+	return None
+
+def func_multiple_select(self,objects_to_select):
+	
+	selected_objects=[]
+	for ob in bpy.data.objects:
+		if ob.type != 'MESH' and ob.type != 'CURVE':
+			continue
+		match = re.search(extend_pattern, ob.name)
+		if not match:
+			ob.hide = True
+			continue
+		ob.select = True
+		selected_objects.append(ob)
+	return selected_objects
+
+
+
 #--------------------------------------------------------------------------------
 #                                   PANEL LAYOUT
 #--------------------------------------------------------------------------------
