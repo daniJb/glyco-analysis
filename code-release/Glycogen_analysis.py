@@ -418,56 +418,89 @@ def glyc_toGlobal_coords(ob_index,objs_attrib,objs_verts,objs_surf,objs_solids,k
 	# we check if neuro_morph is uploaded (recommended), otherwise, we compute the two values 
 	path_list = paths()
 
-	for path in path_list:
-		for mod_name, mod_path in bpy.path.module_names(path):
-			if mod_name == 'NeuroMorph Measurement Tools:  Submesh Volume, Surface Area, and Length':
-				surf_are_time_start = time.time()
-				# SA and VOl computed from neuroMorph
-				bpy.tyeps.Scene.surf_area = objs_surf[ob_index].SA
-				bpy.types.Scene.volume = objs_solids[ob_index].vol
-				break
+	if kwords_flg: # special case
+		for path in path_list:
+			for mod_name, mod_path in bpy.path.module_names(path):
+				if mod_name == 'NeuroMorph Measurement Tools:  Submesh Volume, Surface Area, and Length':
+					surf_are_time_start = time.time()
+					# SA and VOl computed from neuroMorph
+					bpy.tyeps.Scene.surf_area = objs_surf[ob_index].SA
+					if objs_solids[ob_index] != 'incomplete_cell':
+						bpy.types.Scene.volume = objs_solids[ob_index].vol
+					else:
+						bpy.types.Scene.volume = 'incomplete_cell' #0
+					break
+				else:
+					surf_are_time_start = time.time()
+					bpy.types.Scene.surf_area = fget_SA(objs_surf[ob_index])#property(fget_SA, fset_SA)
+					if objs_solids[ob_index] != 'incomplete_cell':
+						bpy.types.Scene.volume = fget_vol(objs_solids[ob_index])
+					else:
+						bpy.types.Scene.volume = 'incomplete_cell' #0
+					break
+		
+		coord_matrix = objs_surf[ob_index].matrix_world
+		
+		# this loop and saves all vertices for one object
+		for v in objs_surf[ob_index].data.vertices:
+			loc = v.co
+			globalCoords = coord_matrix *loc
+			#object has no parent
+			if objs_surf[ob_index].parent is None:
+				objs_verts.append([str(globalCoords.x)
+					,str(globalCoords.y)
+					,str(globalCoords.z) ])
+				# object is a bouton/spine
+				if kwords_flg:
+					objs_attrib.append([objs_surf[ob_index].name
+						,'None'
+						, bpy.types.Scene.surf_area
+						, bpy.types.Scene.volume ])
+				# object is endo or pericyte
+				else:
+					obj = ob_index #for non bouton/spine objects, the ob_index is actually an object. so we correct variable name to obj
+					objs_attrib.append([obj.name,'None'])
+			# object has a parent
 			else:
-				surf_are_time_start = time.time()
-				bpy.types.Scene.surf_area = fget_SA(objs_surf[ob_index])#property(fget_SA, fset_SA)
-				bpy.types.Scene.volume = fget_vol(objs_solids[ob_index])
-				break
-	
-	coord_matrix = objs_surf[ob_index].matrix_world
-	# print(objs_surf[ob_index], 'sa', bpy.types.Scene.surf_area, 'vol', bpy.types.Scene.volume)
+				objs_verts.append([str(globalCoords.x)
+						,str(globalCoords.y)
+						,str(globalCoords.z) ])
+				if kwords_flg:
+					objs_attrib.append([objs_surf[ob_index].name
+						,objs_surf[ob_index].parent.name
+						,bpy.types.Scene.surf_area
+						,bpy.types.Scene.volume ])
+				else:
+					obj = ob_index
+					objs_attrib.append([obj.name, obj.parent.name])
+	else: # Default case. e.g., for Endo's and pericytes
+		obj = ob_index
+		bpy.types.Scene.surf_area = 'None' # we need this to match the size of the numpy array
+		bpy.types.Scene.volume = 'None'
 
-	# this loop and saves all vertices for one object
-	for v in objs_surf[ob_index].data.vertices:
-		loc = v.co
-		globalCoords = coord_matrix *loc
-		#object has no parent
-		if objs_surf[ob_index].parent is None:
-			objs_verts.append([str(globalCoords.x)
-				,str(globalCoords.y)
-				,str(globalCoords.z) ])
-			# object is a bouton/spine
-			if kwords_flg:
-				objs_attrib.append([objs_surf[ob_index].name
+		coord_matrix = obj.matrix_world
+		# this loop and saves all vertices for one object
+		for v in obj.data.vertices:
+			loc = v.co
+			globalCoords = coord_matrix *loc
+			#object has no parent
+			if obj.parent is None:
+				objs_verts.append([str(globalCoords.x)
+					,str(globalCoords.y)
+					,str(globalCoords.z) ])
+				objs_attrib.append([obj.name
 					,'None'
 					, bpy.types.Scene.surf_area
 					, bpy.types.Scene.volume ])
-			# object is endo or pericyte
+			# object has a parent
 			else:
-				obj = ob_index #for non bouton/spine objects, the ob_index is actually an object. so we correct variable name to obj
-				objs_attrib.append([obj.name,'None'])
-		# object has a parent
-		else:
-			objs_verts.append([str(globalCoords.x)
-					,str(globalCoords.y)
-					,str(globalCoords.z) ])
-			if kwords_flg:
-				objs_attrib.append([objs_surf[ob_index].name
-					,objs_surf[ob_index].parent.name
+				objs_verts.append([str(globalCoords.x)
+						,str(globalCoords.y)
+						,str(globalCoords.z) ])
+				objs_attrib.append([obj.name
+					,obj.parent.name
 					,bpy.types.Scene.surf_area
 					,bpy.types.Scene.volume ])
-			else:
-				obj = ob_index
-				objs_attrib.append([obj.name, obj.parent.name])
-				
 	return(objs_attrib,objs_verts)
 
 # getVertices will seperate vertices from attributes
@@ -488,6 +521,7 @@ def getVertices(pattern,coords_type):
 
 	if pattern in kwords:
 		kwords_flg = True #This category has an area and volume (for spines and boutons)
+		is_incomplete = False
 	
 	#================ storing objects ===================
 	for ob in bpy.data.objects:
@@ -496,15 +530,21 @@ def getVertices(pattern,coords_type):
 		if kwords_flg:
 			#for every surf there's either a solid or vol object
 			if re.search(pattern+'.*surf*', ob.name):
+				is_incomplete = True # an incomplete object will only have surf, unless found otherwise, by finding a solid or volume
 				ob.select=True
 				selected_objects_surfs.append(ob)
 				# search in children list of that object's parent. to extract solids or volume objects
 				for child in ob.parent.children:
-					# there can either be a solid or vol per parent. not correct to have both
+					# there can either be a solid or vol per parent. not correct to have both: wrong!
+					# update Mar9th-15: mouse3 naming convetions wrong, solids exist should an object was complete. 
+					# for incomplete objects there's only a surface area value no volumes
 					one_word=ob.name.rsplit('_',1)
 					if re.search(one_word[0]+ '.*solid*' + '|' + one_word[0] + '.*volu*', child.name):
+						is_incomplete = False # object is complete
 						selected_objects_solids.append(child)
 						break
+				if is_incomplete:
+					selected_objects_solids.append('incomplete_cell')
 			else:
 				ob.hide=True
 				continue
@@ -581,16 +621,23 @@ def getVertices(pattern,coords_type):
 							break
 				# --------------------------------------------
 				func_median_location(selected_objects_surfs)
+				
 				for ob in selected_objects_surfs:
 					objs_verts.append([str(ob.location.x)
 						,str(ob.location.y)
 						,str(ob.location.z)])
 					if is_neuro_morpth:
 						bpy.types.Scene.surf_area = ob.SA
-						bpy.types.Scene.volume = ob.vol
+						if is_incomplete:
+							bpy.types.Scene.volume = 'incomplete_cell'
+						else:
+							bpy.types.Scene.volume = ob.vol
 					else:
 						bpy.types.Scene.surf_area = fget_SA(ob)
-						bpy.types.Scene.volume = fget_vol(ob)	
+						if is_incomplete:
+							bpy.types.Scene.volume = 'incomplete_cell'
+						else:
+							bpy.types.Scene.volume = fget_vol(ob)	
 					if ob.parent is None:
 						objs_attrib.append([ob.name
 							,'None'
