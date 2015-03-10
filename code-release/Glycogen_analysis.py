@@ -608,7 +608,7 @@ def getVertices(pattern,coords_type):
 	elif  bpy.context.scene.prop_bool_clusters:
 
 		if selected_objects_surfs and selected_objects_solids and coords_type == "Center Vertices":
-			# usual case for spines and boutons
+		# usual case for spines and boutons
 			if kwords_flg and selected_objects_surfs:
 				is_neuro_morpth = False
 				path_list = paths()
@@ -648,15 +648,26 @@ def getVertices(pattern,coords_type):
 							, ob.parent.name
 							, bpy.types.Scene.surf_area
 							, bpy.types.Scene.volume ])
-			# case for Endo's and Pericytes ==> needs testing after update
-			#elif not kwords_flg and selected_objects:
-			#	for ob in selected_objects:
-			#		objs_attrib, objs_verts = glyc_toGlobal_coords(ob
-			#			,objs_attrib
-			#			,objs_verts
-			#			,[]
-			#			,[]
-			#			,kwords_flg)
+		
+		# case for Endo's and Pericytes
+		elif not kwords_flg and selected_objects and coords_type == 'Center Vertices':
+			func_median_location(selected_objects)
+			
+			for ob in selected_objects:
+				objs_verts.append([str(ob.location.x)
+					,str(ob.location.y)
+					,str(ob.location.z)])
+				if ob.parent is None:
+					objs_attrib.append([ob.name
+						,'None'
+						,'None_sa'
+						,'None_vol'])
+				else:
+					objs_attrib.append([ob.name
+						,ob.parent.name
+						,'None_sa'
+						,'None_vol'])
+
 
 	return(np.array(objs_attrib),np.array(objs_verts))
 
@@ -723,7 +734,7 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 		self.initialise()
 		bpy.types.Scene.glycogen_attrib_np, bpy.types.Scene.glycogen_verts_np = getVertices("Glycogen", "Center Vertices")
 
-		patterns = []
+		patterns = [] # we can switch to a dictionary of options
 		if "bouton" in bpy.context.scene.data_names:
 			patterns.append('bouton')
 		elif "Bouton" in bpy.context.scene.data_names:
@@ -957,8 +968,6 @@ class SCENE_UI_List(bpy.types.UIList):
 		#print('flt_flags',flt_flags)
 		#print('flt_neworder',flt_neworder)
 		return flt_flags, flt_neworder
-
-
 #--------------------------------------------------------------------------------
 #							OPERATOR DISPLAY SELECTION
 #--------------------------------------------------------------------------------
@@ -1422,14 +1431,14 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 			patterns.append('spine')
 		elif "Spine" in bpy.context.scene.data_names:
 			patterns.append('Spine')
-		#if 'Endothelial cell ' in bpy.context.scene.data_names:
-		#	patterns.append('Endothelial cell')
-		#elif 'endothelial cell' in bpy.context.scene.data_names:
-		#	patterns.append('endothelial cell')
-		#if 'Pericyte' in bpy.context.scene.data_names:
-		#	patterns.append('Pericyte')
-		#elif 'pericyte' in bpy.context.scene.data_names:
-		#	patterns.append('pericyte')
+		if 'Endothelial cell ' in bpy.context.scene.data_names:
+			patterns.append('Endothelial cell')
+		elif 'endothelial cell' in bpy.context.scene.data_names:
+			patterns.append('endothelial cell')
+		if 'Pericyte' in bpy.context.scene.data_names:
+			patterns.append('Pericyte')
+		elif 'pericyte' in bpy.context.scene.data_names:
+			patterns.append('pericyte')
 
 		firstTime = True
 		if patterns:
