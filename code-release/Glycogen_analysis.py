@@ -1000,7 +1000,10 @@ class VIEW3D_OT_display_selected(bpy.types.Operator):
 		for ob in bpy.data.objects:
 			if ob.type != 'MESH' and ob.type != 'CURVE':
 				continue
-			match = re.search(pattern+'*', ob.name)
+			if len(pattern) == 1: # for naming conventions like synapses= d0s0a143b1_E
+				match = re.search('\A'+pattern+'\d',ob.name)
+			else:
+				match = re.search(pattern+'*', ob.name)
 			if not match:
 				ob.hide = True
 				continue
