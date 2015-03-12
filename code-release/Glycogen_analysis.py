@@ -534,17 +534,20 @@ def getVertices(pattern,coords_type):
 				ob.select=True
 				selected_objects_surfs.append(ob)
 				# search in children list of that object's parent. to extract solids or volume objects
+				one_word=ob.name.rsplit('_',1)
+
 				for child in ob.parent.children:
 					# there can either be a solid or vol per parent. not correct to have both: wrong!
-					# update Mar9th-15: mouse3 naming convetions wrong, solids exist should an object was complete. 
+					# update Mar9th-15: solids exist if an object was complete. 
 					# for incomplete objects there's only a surface area value no volumes
-					one_word=ob.name.rsplit('_',1)
-					if re.search(one_word[0]+ '.*solid*' + '|' + one_word[0] + '.*volu*', child.name):
-						is_incomplete = False # object is complete
-						selected_objects_solids.append(child)
-						break
+					this_child=child.name.rsplit('_',1) # in case if a parent has one complete and another incomplete, hence only 3 children
+					if one_word[0] == this_child[0]:
+						if re.search(one_word[0]+ '.*solid*' + '|' + one_word[0] + '.*volu*', child.name):
+							is_incomplete = False # object is complete
+							selected_objects_solids.append(child)
+							break
 				if is_incomplete:
-					selected_objects_solids.append('incomplete_cell')
+					selected_objects_solids.append('incomplete_cell')					
 			else:
 				ob.hide=True
 				continue
@@ -621,23 +624,27 @@ def getVertices(pattern,coords_type):
 							break
 				# --------------------------------------------
 				func_median_location(selected_objects_surfs)
-				
+
+				the_index = 0
 				for ob in selected_objects_surfs:
 					objs_verts.append([str(ob.location.x)
 						,str(ob.location.y)
 						,str(ob.location.z)])
+	
 					if is_neuro_morpth:
 						bpy.types.Scene.surf_area = ob.SA
-						if is_incomplete:
+
+						if selected_objects_solids[the_index] == 'incomplete_cell':						
 							bpy.types.Scene.volume = 'incomplete_cell'
 						else:
 							bpy.types.Scene.volume = ob.vol
 					else:
 						bpy.types.Scene.surf_area = fget_SA(ob)
-						if is_incomplete:
+						if selected_objects_solids[the_index] == 'incomplete_cell':
 							bpy.types.Scene.volume = 'incomplete_cell'
 						else:
 							bpy.types.Scene.volume = fget_vol(ob)	
+					
 					if ob.parent is None:
 						objs_attrib.append([ob.name
 							,'None'
@@ -648,6 +655,7 @@ def getVertices(pattern,coords_type):
 							, ob.parent.name
 							, bpy.types.Scene.surf_area
 							, bpy.types.Scene.volume ])
+					the_index = the_index + 1
 		
 		# case for Endo's and Pericytes
 		elif not kwords_flg and selected_objects and coords_type == 'Center Vertices':
