@@ -72,6 +72,7 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 		bpy.types.Scene.data_names = []
 		bpy.types.Scene.prop_obj_names = bpy.props.EnumProperty(items=[])
 		bpy.types.Scene.data_obj_coords = None
+		bpy.types.Scene.data_glycogen_naming_convention = None # or 'glycogen' changes according to user
 		
 	def func_load_objectsNames(self):
 		lst = []
@@ -90,7 +91,12 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 						if common not in lst:
 							lst.append(common)
 						break
-		if "Glycogen." in lst:
+		if "Glycogen." in lst or "Glycogen" in lst:
+			bpy.types.Scene.data_glycogen_naming_convention = "Glycogen"
+		elif 'glycogen.' in lst or 'glycogen' in lst:
+			bpy.types.Scene.data_glycogen_naming_convention = 'glycogen'
+		
+		if bpy.types.Scene.data_glycogen_naming_convention:
 			print("Created")
 			bpy.types.Scene.prop_bool_glycogen = bpy.props.BoolProperty(name="Glycogens", description=" ",
 			update=update_prop_bool_glyc)
@@ -316,7 +322,8 @@ def populate_glycogen_coords():
 	# update3/3/15: adding granule dimension size
 	func_unhide()
 	func_unselect()
-	selected = func_select("Glycogen")
+	selected = func_select(bpy.types.Scene.data_glycogen_naming_convention)
+	print("populate_glycogen_coords: ",selected)
 	bpy.types.Scene.data_obj_coords = []
 	func_median_location(selected)
 
@@ -740,7 +747,8 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 	
 	def invoke(self,context,event):
 		self.initialise()
-		bpy.types.Scene.glycogen_attrib_np, bpy.types.Scene.glycogen_verts_np = getVertices("Glycogen", "Center Vertices")
+		bpy.types.Scene.glycogen_attrib_np, bpy.types.Scene.glycogen_verts_np = getVertices(
+			bpy.types.Scene.data_glycogen_naming_convention, "Center Vertices")
 
 		patterns = [] # we can switch to a dictionary of options
 		if "bouton" in bpy.context.scene.data_names:
@@ -1040,12 +1048,12 @@ class VIEW3D_OT_display_selected(bpy.types.Operator):
 
 		for ob in selected:
 			if ob.parent is None:
-				if bpy.context.scene.prop_obj_names == "Glycogen":
+				if bpy.context.scene.prop_obj_names == bpy.types.Scene.data_glycogen_naming_convention:# "Glycogen":
 					bpy.types.Scene.data_obj_coords.append([ob.name, 'none', str(ob.location.x),str(ob.location.y),str(ob.location.z),str(ob.dimensions.x)])
 				else:
 					bpy.types.Scene.data_obj_coords.append([ob.name, 'none', str(ob.location.x),str(ob.location.y),str(ob.location.z)])
 			else:
-				if bpy.context.scene.prop_obj_names == "Glycogen":
+				if bpy.context.scene.prop_obj_names == bpy.types.Scene.data_glycogen_naming_convention:# "Glycogen":
 					bpy.types.Scene.data_obj_coords.append([ob.name, ob.parent.name , str(ob.location.x),str(ob.location.y),str(ob.location.z), str(ob.dimensions.x)])
 				else:
 					bpy.types.Scene.data_obj_coords.append([ob.name, ob.parent.name , str(ob.location.x),str(ob.location.y),str(ob.location.z)])
@@ -1068,7 +1076,8 @@ class OBJECTS_OT_calculate_clustering_param(bpy.types.Operator):
 
 		if not bpy.context.scene.data_obj_coords:#if its empty, fill it will glycogens info
 			populate_glycogen_coords()
-		elif bpy.context.scene.prop_obj_names != "Glycogen" or bpy.context.scene.prop_obj_names != "Glycogen.":
+		elif bpy.context.scene.prop_obj_names != bpy.types.Scene.data_glycogen_naming_convention or bpy.context.scene.prop_obj_names != bpy.types.Scene.data_glycogen_naming_convention +'.':
+		#elif bpy.context.scene.prop_obj_names != "Glycogen" or bpy.context.scene.prop_obj_names != "Glycogen.":
 			populate_glycogen_coords()
 		
 		for namePoint in bpy.context.scene.data_obj_coords:
@@ -1135,7 +1144,8 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		#in case user decided to skip optimum parameters calculations
 		if not bpy.context.scene.data_obj_coords:
 			populate_glycogen_coords()
-		if bpy.context.scene.prop_obj_names != "Glycogen" or bpy.context.scene.prop_obj_names != "Glycogen.":
+		if bpy.context.scene.prop_obj_names != bpy.types.Scene.data_glycogen_naming_convention or bpy.context.scene.prop_obj_names != bpy.types.Scene.data_glycogen_naming_convention +'.':
+		#if bpy.context.scene.prop_obj_names != "Glycogen" or bpy.context.scene.prop_obj_names != "Glycogen.":
 			populate_glycogen_coords()
 		#DBSCAN
 		for namePoint in bpy.context.scene.data_obj_coords:
