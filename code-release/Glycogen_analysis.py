@@ -1465,7 +1465,9 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		if patterns:
 			for patt in patterns:
 				print("getting Center vertices for: ", patt)
-				temp_attrib_np, temp_verts_np = getVertices(patt, "Center Vertices")
+				#temp_attrib_np, temp_verts_np = getVertices(patt, "Center Vertices")
+				temp_attrib_np, temp_verts_np = getVertices(patt, "All Vertices") #March 26th, 14:33
+				
 				print("temp_attrib_np.shape for ",patt,temp_attrib_np.shape)
 				print("temp_verts_np.shape for ",patt, temp_verts_np.shape)
 				
