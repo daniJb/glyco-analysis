@@ -592,7 +592,8 @@ def getVertices(pattern,coords_type):
 					objs_attrib.append([ob.name, ob.parent.name , ob.dimensions.x])
 				
 		elif coords_type == 'All Vertices':
-			# usual case for Endos and Pericytes and boutons and spines
+			
+			# usual case for boutons and spines
 			if kwords_flg and selected_objects_surfs:
 				time_for_getting_solid_objects=time.time()
 				# we take the index
@@ -604,7 +605,7 @@ def getVertices(pattern,coords_type):
 						,selected_objects_solids
 						,kwords_flg)
 				print("getting solids/vols for ",pattern, 'Done in:', time.time()-time_for_getting_solid_objects)
-			# case for Endo's and Pericytes ==> needs testing after update
+			# case for Endo's and Pericytes
 			elif not kwords_flg and selected_objects:
 				for ob in selected_objects:
 					objs_attrib, objs_verts = glyc_toGlobal_coords(ob
@@ -616,10 +617,11 @@ def getVertices(pattern,coords_type):
 		#========================================================
 
 	elif  bpy.context.scene.prop_bool_clusters:
-
-		if selected_objects_surfs and selected_objects_solids and coords_type == "Center Vertices":
-		# usual case for spines and boutons
-			if kwords_flg and selected_objects_surfs:
+		if selected_objects_surfs and selected_objects_solids:# and coords_type == "Center Vertices":
+			# usual case for spines and boutons
+			#if kwords_flg and selected_objects_surfs:
+			if coords_type == "Center Vertices":
+			
 				is_neuro_morpth = False
 				path_list = paths()
 
@@ -663,26 +665,46 @@ def getVertices(pattern,coords_type):
 							, bpy.types.Scene.surf_area
 							, bpy.types.Scene.volume ])
 					the_index = the_index + 1
-		
+			elif coords_type == 'All Vertices':
+				#case of spines & boutons All vertices
+				time_for_getting_solid_objects=time.time()
+				# we take the index
+				for ob_index in range(len(selected_objects_surfs)):
+					objs_attrib, objs_verts = glyc_toGlobal_coords(ob_index
+						,objs_attrib
+						,objs_verts
+						,selected_objects_surfs
+						,selected_objects_solids
+						,kwords_flg)
+				print("getting solids/vols for ",pattern, 'Done in:', time.time()-time_for_getting_solid_objects)
 		# case for Endo's and Pericytes
-		elif not kwords_flg and selected_objects and coords_type == 'Center Vertices':
-			func_median_location(selected_objects)
-			
-			for ob in selected_objects:
-				objs_verts.append([str(ob.location.x)
-					,str(ob.location.y)
-					,str(ob.location.z)])
-				if ob.parent is None:
-					objs_attrib.append([ob.name
-						,'None'
-						,'None_sa'
-						,'None_vol'])
-				else:
-					objs_attrib.append([ob.name
-						,ob.parent.name
-						,'None_sa'
-						,'None_vol'])
+		elif not kwords_flg and selected_objects:
+			if coords_type == 'Center Vertices':
+				func_median_location(selected_objects)
+				
+				for ob in selected_objects:
+					objs_verts.append([str(ob.location.x)
+						,str(ob.location.y)
+						,str(ob.location.z)])
+					if ob.parent is None:
+						objs_attrib.append([ob.name
+							,'None'
+							,'None_sa'
+							,'None_vol'])
+					else:
+						objs_attrib.append([ob.name
+							,ob.parent.name
+							,'None_sa'
+							,'None_vol'])
 
+			elif coords_type == 'All Vertices':
+				for ob in selected_objects:
+					objs_attrib, objs_verts = glyc_toGlobal_coords(ob
+						,objs_attrib
+						,objs_verts
+						,[]
+						,[]
+						,kwords_flg)
 
 	return(np.array(objs_attrib),np.array(objs_verts))
 
