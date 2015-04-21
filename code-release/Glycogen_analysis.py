@@ -514,9 +514,9 @@ def glyc_toGlobal_coords(ob_index,objs_attrib,objs_verts,objs_surf,objs_solids,k
 def getVertices(pattern,coords_type): 
 	func_unhide()
 	func_unselect()
-	# These lists used to Store Entire Objects, not just names
-	selected_objects = [] #glycogen usualy
-	selected_objects_solids=[] #
+	# These lists used to store a whole Objects
+	selected_objects = [] #glycogens usually
+	selected_objects_solids=[] # solids and surfs lists are for boutons and spines
 	selected_objects_surfs=[] # Those 3 should all be with the same length, stores boutons and spines
 	
 	objs_attrib = [] #either name, parent or just name
@@ -530,13 +530,14 @@ def getVertices(pattern,coords_type):
 		kwords_flg = True #This category has an area and volume (for spines and boutons)
 		is_incomplete = False
 	
-	#================ storing objects ===================
+	#================ storing objects according to their type ===================
 	for ob in bpy.data.objects:
-		if ob.type != 'MESH': #only taking MESHS
+		if ob.type != 'MESH': #only taking MESHS, no CURVES,..etc
 			continue
-		if kwords_flg:
-			#for every surf there's either a solid or vol object
-			if re.search(pattern+'.*surf*', ob.name):
+		
+		if kwords_flg: #flag for a bouton or spine object
+			# an incomplete object is detected either by finding a *vol | *solid copy of it. or from its object.name(), where it starts by "in"
+			if re.search(pattern+'.*surf*', ob.name): #for every surf there's either a solid or vol object depends on how they're named from neuroMorph
 				is_incomplete = True # an incomplete object will only have surf, unless found otherwise, by finding a solid or volume
 				ob.select=True
 				selected_objects_surfs.append(ob)
@@ -547,10 +548,12 @@ def getVertices(pattern,coords_type):
 					# there can either be a solid or vol per parent. not correct to have both: wrong!
 					# update Mar9th-15: solids exist if an object was complete. 
 					# for incomplete objects there's only a surface area value no volumes
-					this_child=child.name.rsplit('_',1) # in case if a parent has one complete and another incomplete, hence only 3 children
+
+					this_child=child.name.rsplit('_',1) # in case if a parent has one complete and another incomplete, hence 3 children, 
+														# we need to match first part of object_name to recognise its copies
 					if one_word[0] == this_child[0]:
 						if re.search(one_word[0]+ '.*solid*' + '|' + one_word[0] + '.*volu*', child.name):
-							is_incomplete = False # object is complete
+							is_incomplete = False  #object is complete
 							selected_objects_solids.append(child)
 							break
 				if is_incomplete:
@@ -568,9 +571,10 @@ def getVertices(pattern,coords_type):
 				continue
 	#====================================================
 	
-	# total SOLID/VOLUME OBJECTS = total SURF OBJECTS
 	if selected_objects:
 		print("selected_objects",len(selected_objects), selected_objects[0])
+	
+	# Total SOLID/VOLUME objects = total SURF objects
 	if selected_objects_solids:
 		print("selected_objects_solids",len(selected_objects_solids),selected_objects_solids[0])
 	if selected_objects_surfs and selected_objects_solids:
@@ -592,7 +596,6 @@ def getVertices(pattern,coords_type):
 					objs_attrib.append([ob.name, ob.parent.name , ob.dimensions.x])
 				
 		elif coords_type == 'All Vertices':
-			
 			# usual case for boutons and spines
 			if kwords_flg and selected_objects_surfs:
 				time_for_getting_solid_objects=time.time()
