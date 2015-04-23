@@ -1695,7 +1695,7 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 		col1.label("--- Measurements ---")
 		row1_col1 = col1.row(align=True)
 		#toggle two boolean variables (if they exist!)
-		if bpy.types.Scene.prop_bool_glycogen:
+		if bpy.types.Scene.prop_bool_glycogen: #not None or if bpy.types.Scene.prop_bool_clusters
 			row1_col1.prop(scene,'prop_bool_glycogen')
 			row1_col1.prop(scene,'prop_bool_clusters')
 
@@ -1707,7 +1707,7 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 				if bpy.context.scene.prop_dbscan_info:
 					infobox = layout.box()
 					row2_layout= infobox.row()
-					row2_layout.label("Clustering pareameters can either be set automaticlly")
+					row2_layout.label("Clustering parameters can either be set automatically")
 					row2_info = infobox.row()
 					row2_info.alignment = 'LEFT'
 					row2_info.label("from step (1) or manually from step (2)")
@@ -1755,7 +1755,12 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 				row7_step2.enabled = False
 				row7_step2.label("Sillohouette Coefficient:")
 				row7_step2.prop(scene,'prop_silh')
-				
+
+				## add type of vertices here --:
+				row7_1_step2 = layout.row()
+				row7_step2.prop(scene,"prop_vertType")
+				row7_1_step2.enabled = False
+				#
 				row8_step2 = layout.row()
 				row8_step2.operator("objects.clusters_nearest_neighbours", "Calculate Nearest Neighbour")
 				row8_step2.enabled = False
@@ -1766,7 +1771,7 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 				
 				if bpy.context.scene.flag_clusters_measure:
 					row8_step2.enabled = True
-
+					row7_1_step2.enabled = True
 					if bpy.context.scene.flag_clusters_measured:
 						row9_step2.enabled = True
 
