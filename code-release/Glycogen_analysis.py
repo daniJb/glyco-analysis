@@ -515,7 +515,7 @@ def getVertices(pattern,coords_type):
 	func_unhide()
 	func_unselect()
 	# These lists used to store a whole Objects
-	selected_objects = [] #glycogens usually
+	selected_objects = [] #glycogens and non neuronal objects (e.g., Endo's and Pericytes)
 	selected_objects_solids=[] # solids and surfs lists are for boutons and spines
 	selected_objects_surfs=[] # Those 3 should all be with the same length, stores boutons and spines
 	
@@ -584,14 +584,14 @@ def getVertices(pattern,coords_type):
 
 	if bpy.context.scene.prop_bool_glycogen:
 		
-		if selected_objects and coords_type == "Centroids":
-			# usual case for glycogens
-			# we need to get size dimensions per granule
+		if selected_objects and coords_type == "Centroids": # usual case for glycogens
 			func_median_location(selected_objects)
+			
 			for ob in selected_objects:
 				objs_verts.append([str(ob.location.x),str(ob.location.y),str(ob.location.z)])
+				
 				if ob.parent is None:
-					objs_attrib.append([ob.name, 'None', ob.dimensions.x])
+					objs_attrib.append([ob.name, 'None', ob.dimensions.x]) # we need to get size dimensions per granule
 				else:
 					objs_attrib.append([ob.name, ob.parent.name , ob.dimensions.x])
 				
