@@ -170,7 +170,7 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 			for index, name in enumerate(lcl_list):
 				objects.append((name, name, str(index))) #blender needs a tuple for a dropdown list UI
 				bpy.context.scene.data_names.append(name)
-			bpy.types.Scene.prop_obj_names = bpy.props.EnumProperty(items=objects)
+			bpy.types.Scene.prop_obj_names = bpy.props.EnumProperty(name='Objects Names',items=objects)
 	#---------------#
 	def invoke(self,context,event):
 		self.func_init()
@@ -1163,9 +1163,11 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 	layers_array = []
 
 	def invoke(self,context,event):
+		# necessary init
 		gly_names =[]
 		gly_points = []
 		bpy.types.Scene.data_glyc_clusters = []
+		
 		#in case user decided to skip optimum parameters calculations
 		if not bpy.context.scene.data_obj_coords:
 			populate_glycogen_coords()
@@ -1758,7 +1760,7 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 
 				## add type of vertices here --:
 				row7_1_step2 = layout.row()
-				row7_step2.prop(scene,"prop_vertType")
+				row7_1_step2.prop(scene,"prop_vertType")
 				row7_1_step2.enabled = False
 				#
 				row8_step2 = layout.row()
@@ -1851,6 +1853,7 @@ def register():
 	bpy.types.Scene.prop_nclusters = None
 	bpy.types.Scene.prop_silh = None
 	#clusters measurements:
+	bpy.types.Scene.prop_vertType = bpy.props.EnumProperty(name='Measurements Origin:',items=[('Centroids','Centroids',''),('All Vertices','All Vertices','')]) # verts type (cetnroids or all_verts) -constant
 	bpy.types.Scene.data_clusters_centroids = None
 	bpy.types.Scene.flag_clusters_measure = None
 	bpy.types.Scene.flag_clusters_measured = None
@@ -1874,6 +1877,7 @@ def register():
 	bpy.types.Scene.data_glyc_neighbours = None
 	bpy.types.Scene.data_noOfGlyc = None
 	bpy.types.Scene.data_glyc_to_neighb_dist = None
+
 	
 def unregister():
 	bpy.utils.unregister_module(__name__)
@@ -1914,6 +1918,8 @@ def unregister():
 	if bpy.types.Scene.prop_silh:
 		del bpy.types.Scene.prop_silh
 	#clusters measurements:
+	if bpy.types.Scene.prop_vertType: #dropdown list(centroids or all vertices)
+		del bpy.types.Scene.prop_vertType
 	if bpy.types.Scene.data_clusters_centroids:
 		del bpy.types.Scene.data_clusters_centroids
 	if bpy.types.Scene.flag_clusters_measure:
