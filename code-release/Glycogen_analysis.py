@@ -584,7 +584,7 @@ def getVertices(pattern,coords_type):
 
 	if bpy.context.scene.prop_bool_glycogen:
 		
-		if selected_objects and coords_type == "Center Vertices":
+		if selected_objects and coords_type == "Centroids":
 			# usual case for glycogens
 			# we need to get size dimensions per granule
 			func_median_location(selected_objects)
@@ -620,10 +620,10 @@ def getVertices(pattern,coords_type):
 		#========================================================
 
 	elif  bpy.context.scene.prop_bool_clusters:
-		if selected_objects_surfs and selected_objects_solids:# and coords_type == "Center Vertices":
+		if selected_objects_surfs and selected_objects_solids:# and coords_type == "Centroids":
 			# usual case for spines and boutons
 			#if kwords_flg and selected_objects_surfs:
-			if coords_type == "Center Vertices":
+			if coords_type == "Centroids":
 			
 				is_neuro_morpth = False
 				path_list = paths()
@@ -682,7 +682,7 @@ def getVertices(pattern,coords_type):
 				print("getting solids/vols for ",pattern, 'Done in:', time.time()-time_for_getting_solid_objects)
 		# case for Endo's and Pericytes
 		elif not kwords_flg and selected_objects:
-			if coords_type == 'Center Vertices':
+			if coords_type == 'Centroids':
 				func_median_location(selected_objects)
 				
 				for ob in selected_objects:
@@ -773,7 +773,7 @@ class OBJECTS_OT_glycogens_nearest_neighbours(bpy.types.Operator):
 	def invoke(self,context,event):
 		self.initialise()
 		bpy.types.Scene.glycogen_attrib_np, bpy.types.Scene.glycogen_verts_np = getVertices(
-			bpy.types.Scene.data_glycogen_naming_convention, "Center Vertices")
+			bpy.types.Scene.data_glycogen_naming_convention, "Centroids")
 
 		patterns = [] # we can switch to a dictionary of options
 		if "bouton" in bpy.context.scene.data_names:
@@ -1491,9 +1491,11 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		firstTime = True
 		if patterns:
 			for patt in patterns:
-				print("getting Center vertices for: ", patt)
-				#temp_attrib_np, temp_verts_np = getVertices(patt, "Center Vertices")
-				temp_attrib_np, temp_verts_np = getVertices(patt, "All Vertices") #March 26th, 14:33
+				print("getting ",bpy.context.scene.prop_vertType," for: ", patt)
+				#temp_attrib_np, temp_verts_np = getVertices(patt, "Centroids")
+				#temp_attrib_np, temp_verts_np = getVertices(patt, "All Vertices") #March 26th, 14:33
+				temp_attrib_np, temp_verts_np = getVertices(patt, bpy.context.scene.prop_vertType)
+				
 				
 				print("temp_attrib_np.shape for ",patt,temp_attrib_np.shape)
 				print("temp_verts_np.shape for ",patt, temp_verts_np.shape)
@@ -1853,7 +1855,7 @@ def register():
 	bpy.types.Scene.prop_nclusters = None
 	bpy.types.Scene.prop_silh = None
 	#clusters measurements:
-	bpy.types.Scene.prop_vertType = bpy.props.EnumProperty(name='Measurements Origin:',items=[('Centroids','Centroids',''),('All Vertices','All Vertices','')]) # verts type (cetnroids or all_verts) -constant
+	bpy.types.Scene.prop_vertType = bpy.props.EnumProperty(name='Measurements Type:',items=[('Centroids','Centroids',''),('All Vertices','All Vertices','')]) # verts type (cetnroids or all_verts) -constant
 	bpy.types.Scene.data_clusters_centroids = None
 	bpy.types.Scene.flag_clusters_measure = None
 	bpy.types.Scene.flag_clusters_measured = None
