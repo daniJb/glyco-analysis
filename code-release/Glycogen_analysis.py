@@ -545,7 +545,7 @@ def getVertices(pattern,coords_type):
 				one_word=ob.name.rsplit('_',1)
 
 				for child in ob.parent.children:
-					# there can either be a solid or vol per parent. not correct to have both: wrong!
+					# there can either be a solid or vol per parent. not correct to have both: wrong! in case if there was 3 children, one has a solid (complete) and one doesnt (incomplete)
 					# update Mar9th-15: solids exist if an object was complete. 
 					# for incomplete objects there's only a surface area value no volumes
 
@@ -1464,7 +1464,7 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		clusters are generated.
 	"""	
 	def invoke(self,context,event):
-		#self.initialise()
+		self.initialise()
 		bpy.types.Scene.dict_nobj_sa_vol = {}
 		#1-compute clusters centroids:
 		bpy.types.Scene.data_clusters_centroids = self.get_clusters_centroids()
@@ -1552,10 +1552,10 @@ class OBJECTS_OT_clusters_nearest_neighbours(bpy.types.Operator):
 		bpy.types.Scene.flag_clusters_measured = True
 
 		return{"FINISHED"}
-	#@classmethod
-	#def initialise(self):
-	#	bpy.types.Scene.data_clusters_centroids = []
-	#	bpy.types.Scene.data_clusters_distances = []
+	@classmethod
+	def initialise(self):
+		bpy.types.Scene.data_clusters_centroids = []
+		bpy.types.Scene.data_clusters_distances = []
 
 	def get_clusters_centroids(self):
 		glyNames = []
