@@ -1224,12 +1224,14 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 						end=time.time()
 						print("read glycogen granules in:", end-start)
 						ellip_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
-						self.draw_ellipsoid(dlabel,ellip_color)
+						
+						self.call_draw_ellipsoid(dlabel,ellip_color)
 				else:
 					end = time.time()
 					print("read glycogen granules in:", end-start)
 					ellip_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
-					self.draw_ellipsoid(prev_label,ellip_color)
+					
+					self.call_draw_ellipsoid(prev_label,ellip_color)
 					
 					start = time.time()
 					this_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
@@ -1308,6 +1310,34 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		ob.active_material = mat #-necessary for predrawn objects with pre active materials, otherwise, append is enough
 		if ob.active_material.name == 'mat_1':
 			print(ob.name, 'error: color not changed')
+	
+	def call_draw_ellipsoid(self, dlabel, this_color):
+		# error_flag to avoid singular matrix inverse calculations April29th
+		error_flag = True
+		fix_flag = False
+		
+		#Figure out the value of +noise+, to be added in case a singular matrix pops up
+		d = decimal.Decimal(self.np_points_[0,2]) #always take the first indice, z axis
+		dexp = abs(d.as_tuple().exponent)
+		noise = float(10**-(dexp+2))
+		
+		#two options, uncomment one of them:
+		#1 singular matrix hack, add offset to digonal values in no_points_, it will cause cluster to widen with a fractin of 0.00001 microns		
+		while error_flag:
+			if fix_flag:
+				# matrix will always have 3 columns (x,y,z), from the shape of the matrix we loop
+				rows,colums = np.shape(self.np_points_)
+				self.np_points_[0,2] = self.np_points_[0,2] + noise #least amount of noise
+				fix_flag = False
+			
+			error_flag,fix_flag = self.draw_ellipsoid(dlabel,this_color)
+			if not error_flag:
+				break
+		#2 skip ellipsoids drawing. granules will be coloured only. 
+		"""error_flag,fix_flag = self.draw_ellipsoid(dlabel,this_color)
+		if error_flag:
+			print('ellipsoid no ',dlabel, 'is skipped')"""
+		
 	###---- DRAW ELLIPSOID FUNCTION -----
 	def draw_ellipsoid(self, dlabel, this_color):
 		label = str(dlabel)
@@ -1323,7 +1353,15 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		# Khachiyan Algorithm
 		while err > tolerance:
 			V = np.dot(Q, np.dot(np.diag(u), QT))
-			M = np.diag(np.dot(QT , np.dot(linalg.inv(V), Q)))   
+			
+			#M = np.diag(np.dot(QT , np.dot(linalg.inv(V), Q)))
+			try:
+				D = linalg.inv(V)
+			except:
+				fix_flag =True
+				return (True,fix_flag)
+			M = np.diag(np.dot(QT , np.dot(D, Q)))
+			
 			# M the diagonal vector of an NxN matrix
 			j = np.argmax(M)
 			maximum = M[j]
@@ -1334,11 +1372,16 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 			u = new_u
 		#End of while                
 		center = np.dot(P.T, u)
-		# the A matrix for the ellipse
-		A = linalg.inv(
-					   np.dot(P.T, np.dot(np.diag(u), P)) - 
-					   np.array([[a * b for b in center] for a in center])
-					   ) / d                               
+		try:
+			# the A matrix for the ellipse
+			A = linalg.inv(
+						   np.dot(P.T, np.dot(np.diag(u), P)) - 
+						   np.array([[a * b for b in center] for a in center])
+						   ) / d
+		except:
+			fix_flag =True
+			return (True,fix_flag)
+
 		U, s, rotation = linalg.svd(A)
 		radii = 1.0/np.sqrt(s)
 		u = np.linspace(0.0, 2.0 * np.pi, 100)
@@ -1362,6 +1405,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		#print(self.layer_indx)                                                                                                                            
 		bpy.context.scene.layers[self.layer_index] = True #11 but 12 in count
 		obj = bpy.context.active_object
+		
 		if obj.name == 'fake'+label and obj.type == 'MESH':
 			bpy.ops.object.mode_set(mode='EDIT')
 			bpy.ops.mesh.delete(type='VERT') #delete all fake object's vertices
@@ -1402,6 +1446,11 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 			#to hide 'icosphere'
 			bpy.ops.object.select_all(action='DESELECT')
 			bpy.data.objects['fake'+label].hide = True
+
+			return False,False
+		
+		return True, False
+
 	###---- PARENT-CHILD FUNCTION -----
 	def makeParentOf(self):
 		children_list = self.objects_names
