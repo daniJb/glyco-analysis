@@ -44,6 +44,7 @@ import os
 from os.path import expanduser
 import math
 import mathutils
+import decimal
 
 #---------------------------------------------------------------------------------
 # 	  					# INFO TEXTS #
