@@ -1318,22 +1318,33 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		fix_flag = False
 		
 		#Figure out the value of +noise+, to be added in case a singular matrix pops up
-		d = decimal.Decimal(self.np_points_[0,2]) #always take the first indice, z axis
-		dexp = abs(d.as_tuple().exponent)
-		noise = float(10**-(dexp+2))
+			#d = decimal.Decimal(self.np_points_[0,2]) #always take the first indice, z axis
+			#dexp = abs(d.as_tuple().exponent)
+			#noise = float(10**-(dexp))
+		# the above method will be ignored for now, as matrix values are rounded to 5 decimal points.
+		
+		noise = 0.000001
+		err_rounds = 0
 		
 		#two options, uncomment one of them:
 		#1 singular matrix hack, add offset to digonal values in no_points_, it will cause cluster to widen with a fractin of 0.00001 microns		
 		while error_flag:
 			if fix_flag:
-				# matrix will always have 3 columns (x,y,z), from the shape of the matrix we loop
-				rows,colums = np.shape(self.np_points_)
+				#rows,colums = np.shape(self.np_points_)
+				err_rounds = err_rounds + 1
+				old_value = self.np_points_[0,2]
 				self.np_points_[0,2] = self.np_points_[0,2] + noise #least amount of noise
-				fix_flag = False
+				print('for ellipsoid ', dlabel, 'fix_flagis applied for the ',err_rounds,'time. Matrix element was ',
+					old_value ,' changed to ',self.np_points_[0,2],'noise value is: ',noise)
+
+				fix_flag = False #switch off after applied fix
 			
 			error_flag,fix_flag = self.draw_ellipsoid(dlabel,this_color)
 			if not error_flag:
 				break
+			print('for ellipsoid ', dlabel, 'draw_ellipsoid has been called for the ',err_rounds,
+				'time. Matrix element ', self.np_points_[0,2],'noise value is: ',noise)
+
 		#2 skip ellipsoids drawing. granules will be coloured only. 
 		"""error_flag,fix_flag = self.draw_ellipsoid(dlabel,this_color)
 		if error_flag:
