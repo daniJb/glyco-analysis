@@ -1217,7 +1217,8 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 							objToColor = correct_obj
 							self.setMaterial(objToColor,this_color)
 							break
-					cluster_points.append([float(point) for point in dpoints[0:3]])
+					# May3rd, we need a fixed decimal points of 8, to avoid weird ellipses shapes:
+					cluster_points.append([float("{0:.8f}".format(point)) for point in dpoints[0:3]])
 						
 					self.objects_names.append(dname)
 					self.np_points_ = np.array(cluster_points)
@@ -1246,7 +1247,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 							objToColor = correct_obj
 							self.setMaterial(objToColor,this_color)
 							break
-					cluster_points.append([float(point) for point in dpoints[0:3]])
+					cluster_points.append([float("{0:.8f}".format(point)) for point in dpoints[0:3]])
 					self.objects_names.append(dname)
 					self.np_points_ = np.array(cluster_points)
 
