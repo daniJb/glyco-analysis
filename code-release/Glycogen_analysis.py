@@ -1217,8 +1217,8 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 							objToColor = correct_obj
 							self.setMaterial(objToColor,this_color)
 							break
-					# May3rd, we need a fixed decimal points of 8, to avoid weird ellipses shapes:
-					cluster_points.append([float("{0:.8f}".format(point)) for point in dpoints[0:3]])
+					# May 3rd, we need a fixed decimal points of 8, to avoid weird ellipses shapes, (two places):
+					cluster_points.append([float("{0:.6f}".format(point)) for point in dpoints[0:3]])
 						
 					self.objects_names.append(dname)
 					self.np_points_ = np.array(cluster_points)
@@ -1247,7 +1247,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 							objToColor = correct_obj
 							self.setMaterial(objToColor,this_color)
 							break
-					cluster_points.append([float("{0:.8f}".format(point)) for point in dpoints[0:3]])
+					cluster_points.append([float("{0:.6f}".format(point)) for point in dpoints[0:3]])
 					self.objects_names.append(dname)
 					self.np_points_ = np.array(cluster_points)
 
@@ -1455,10 +1455,12 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 			
 			#make ellipsoid a parent
 			self.makeParentOf()
-
 			#to hide 'icosphere'
 			bpy.ops.object.select_all(action='DESELECT')
-			bpy.data.objects['fake'+label].hide = True
+			#bpy.data.objects['fake'+label].hide = True
+			# May 4th2015, instead of hiding, we will delete the fake object
+			bpy.data.objects['fake'+label].select = True
+			bpy.ops.object.delete()
 
 			return False,False
 		
