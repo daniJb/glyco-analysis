@@ -1243,21 +1243,39 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 							objToColor = correct_obj
 							self.setMaterial(objToColor,this_color)
 							break
-					cluster_points.append([float(point) for point in dpoints[0:3]])
-						
+					# jun2nd-15:
+					pointsList=[]
+					i=1
+					for point in dpoints:
+						dexp=len(str(point).split('.')[1])
+						if i==3:#change zcoords only
+							pointsList.append('{0:.{precision}f}'.format(point,precision=dexp-1))
+						else:
+							pointsList.append('{0:.{precision}f}'.format(point,precision=dexp))
+						i=i+1
+					cluster_points.append(pointsList)
+					#cluster_points.append([float(point) for point in dpoints[0:3]])
+					self.np_points_ = np.array(cluster_points)#dtype=np.float64
+					# end jun2nd changes
+
 					self.objects_names.append(dname)
-					self.np_points_ = np.array(cluster_points)
+
 					if data_size == 0:
 						end=time.time()
 						print("read glycogen granules in:", end-start)
 						ellip_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
-						self.draw_ellipsoid(dlabel,ellip_color)
+						#jun4th
+						self.call_draw_ellipsoid(dlabel, ellip_color)
+						#self.draw_ellipsoid(dlabel,ellip_color)
+						#end jun4th
 				else:
 					end = time.time()
 					print("read glycogen granules in:", end-start)
 					ellip_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
-					self.draw_ellipsoid(prev_label,ellip_color)
-					
+					# jun2nd-15
+					self.call_draw_ellipsoid(prev_label, ellip_color)
+					#self.draw_ellipsoid(prev_label,ellip_color)
+					# end
 					start = time.time()
 					this_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
 					cluster_points = []
@@ -1270,10 +1288,23 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 							objToColor = correct_obj
 							self.setMaterial(objToColor,this_color)
 							break
-					cluster_points.append([float(point) for point in dpoints[0:3]])
+					# Jun2nd-15:
+					pointsList=[]
+					i=1
+					for point in dpoints:
+						dexp=len(str(point).split('.')[1])
+						if i==3:# we want zCoords only
+							pointsList.append('{0:.{precision}f}'.format(point,precision=dexp-1))
+						else:
+							pointsList.append('{0:.{precision}f}'.format(point,precision=dexp))
+						i=i+1
+					cluster_points.append(pointsList)
+					self.np_points_ = np.array(cluster_points)#dtype=np.float64
+					#cluster_points.append([float(point) for point in dpoints[0:3]])
+					# end jun2nd change
+					
 					self.objects_names.append(dname)
-					self.np_points_ = np.array(cluster_points)
-
+					
 		#hiding other granules (NOISE), cleaning the worksapce view
 		ellipsoidstr = "ellipsoid"
 		
@@ -1335,22 +1366,60 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		ob.active_material = mat #-necessary for predrawn objects with pre active materials, otherwise, append is enough
 		if ob.active_material.name == 'mat_1':
 			print(ob.name, 'error: color not changed')
+	
 	###---- DRAW ELLIPSOID FUNCTION -----
+	def call_draw_ellipsoid(self,dlabel, this_color):
+		# error_flag to avoid singular matrix inverse calculations April29th
+		error_flag=True
+		fix_flag=False
+		err_rounds = 0
+		# extract number of decimal places to add noise to the right most place of the first value in the points matrix.
+		# this is to avoid singular matrixes from popping up
+		dexp = len(str(number).split('.')[1])
+		noise = 1/(10**dexp)
+
+		while error_flag:
+			if fix_flag:
+				err_rounds = err_rounds + 1
+				old_value = self.np_points_[0,2]
+				self.np_points_[0,2] = self.np_points_[0,2] + noise #least amount of noise
+				print('for ellipsoid ', dlabel, 'fix_flag wass applied for the ',err_rounds,'time. Matrix element was ',
+					old_value ,' changed to ',self.np_points_[0,2],'noise value approximte: ',noise)
+				fix_flag = False #switch it off after applied fix
+
+			error_flag, fix_flag = self.draw_ellipsoid(dlabel, this_color)
+			if not error_flag:
+				break
+			print('for ellipsoid ', dlabel, 'draw_ellipsoid has been called for the ',err_rounds,
+				'time. Matrix element ', self.np_points_[0,2],'noise value is: ',noise)
+
 	def draw_ellipsoid(self, dlabel, this_color):
 		label = str(dlabel)
+
+			# initializations
 		tolerance = 0.01
 		P = self.np_points_
 		(N, d) = np.shape(P)
-		d = float(d)        
+			# Dimension, its 3D, each point has x,y,z values
+		d = float(d)
+			# add 1 row of all 1's, thats why we use vstack and np.ones
 		Q = np.vstack([np.copy(P.T), np.ones(N)]) 
 		QT = Q.T
-		# initializations
+
 		err = 1.0 + tolerance
 		u = (1.0 / N) * np.ones(N)
+		
 		# Khachiyan Algorithm
 		while err > tolerance:
 			V = np.dot(Q, np.dot(np.diag(u), QT))
-			M = np.diag(np.dot(QT , np.dot(linalg.inv(V), Q)))   
+
+			try:
+				D = linalg.inv(V)
+			except:
+				fix_flag=True
+				return (True,fix_flag)
+			M = np.diag(np.dot(QT , np.dot(D, Q)))   	
+			#M = np.diag(np.dot(QT , np.dot(linalg.inv(V), Q)))
 			# M the diagonal vector of an NxN matrix
 			j = np.argmax(M)
 			maximum = M[j]
@@ -1359,13 +1428,19 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 			new_u[j] += step_size
 			err = np.linalg.norm(new_u - u)
 			u = new_u
-		#End of while                
+		#End of while
+
 		center = np.dot(P.T, u)
+		try:
 		# the A matrix for the ellipse
-		A = linalg.inv(
-					   np.dot(P.T, np.dot(np.diag(u), P)) - 
-					   np.array([[a * b for b in center] for a in center])
-					   ) / d                               
+			A = linalg.inv(
+						   np.dot(P.T, np.dot(np.diag(u), P)) - 
+						   np.array([[a * b for b in center] for a in center])
+						   ) / d
+		except:
+			fix_flag=True
+			return(True,fix_flag)
+
 		U, s, rotation = linalg.svd(A)
 		radii = 1.0/np.sqrt(s)
 		u = np.linspace(0.0, 2.0 * np.pi, 100)
@@ -1380,6 +1455,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 			for j in range(len(x)):
 				[x[i,j],y[i,j],z[i,j]] = np.dot([x[i,j],y[i,j],z[i,j]], rotation)+center
 		end = time.time()
+		
 		print("ellipsoid no.:",dlabel,"drawn in ", end-start, "no of granules:",len(self.objects_names))
 		
 		#we need a fake mesh (sphere)
@@ -1429,6 +1505,12 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 			#to hide 'icosphere'
 			bpy.ops.object.select_all(action='DESELECT')
 			bpy.data.objects['fake'+label].hide = True
+			bpy.ops.object.delete()
+
+			return False,False
+		return False,False
+
+
 	###---- PARENT-CHILD FUNCTION -----
 	def makeParentOf(self):
 		children_list = self.objects_names
