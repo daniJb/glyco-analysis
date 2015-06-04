@@ -1255,7 +1255,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 						i=i+1
 					cluster_points.append(pointsList)
 					#cluster_points.append([float(point) for point in dpoints[0:3]])
-					self.np_points_ = np.array(cluster_points)#dtype=np.float64
+					self.np_points_ = np.array(cluster_points, dtype=np.float64)
 					# end jun2nd changes
 
 					self.objects_names.append(dname)
@@ -1299,7 +1299,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 							pointsList.append('{0:.{precision}f}'.format(point,precision=dexp))
 						i=i+1
 					cluster_points.append(pointsList)
-					self.np_points_ = np.array(cluster_points)#dtype=np.float64
+					self.np_points_ = np.array(cluster_points,dtype=np.float64)
 					#cluster_points.append([float(point) for point in dpoints[0:3]])
 					# end jun2nd change
 					
@@ -1375,7 +1375,7 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		err_rounds = 0
 		# extract number of decimal places to add noise to the right most place of the first value in the points matrix.
 		# this is to avoid singular matrixes from popping up
-		dexp = len(str(number).split('.')[1])
+		dexp = len(str(self.np_points_[0,2]).split('.')[1])
 		noise = 1/(10**dexp)
 
 		while error_flag:
