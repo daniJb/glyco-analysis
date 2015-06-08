@@ -1504,7 +1504,9 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 
 			#to hide 'icosphere'
 			bpy.ops.object.select_all(action='DESELECT')
-			bpy.data.objects['fake'+label].hide = True
+			#bpy.data.objects['fake'+label].hide = True
+			# we will delete fake objects instead of hiding
+			bpy.data.objects['fake'+label].select = True
 			bpy.ops.object.delete()
 
 			return False,False
