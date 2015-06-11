@@ -1248,14 +1248,17 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 					i=1
 					for point in dpoints:
 						dexp=len(str(point).split('.')[1])
-						if i==3:#change zcoords only
-							pointsList.append('{0:.{precision}f}'.format(point,precision=dexp-1))
-						else:
-							pointsList.append('{0:.{precision}f}'.format(point,precision=dexp))
+						#noise = 1/10**dexp
+						#floatVal = point - noise
+						#pointsList.append(floatVal)
+						#if i==1: # change one axis per point
+						pointsList.append(float('{0:.{precision}f}'.format(point,precision=dexp-2)))
+						#else:
+						#	pointsList.append(float('{0:.{precision}f}'.format(point,precision=dexp)))
 						i=i+1
 					cluster_points.append(pointsList)
 					#cluster_points.append([float(point) for point in dpoints[0:3]])
-					self.np_points_ = np.array(cluster_points, dtype=np.float64)
+					self.np_points_ = np.array(cluster_points)#, dtype=np.float64)
 					# end jun2nd changes
 
 					self.objects_names.append(dname)
@@ -1293,13 +1296,18 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 					i=1
 					for point in dpoints:
 						dexp=len(str(point).split('.')[1])
-						if i==3:# we want zCoords only
-							pointsList.append('{0:.{precision}f}'.format(point,precision=dexp-1))
-						else:
-							pointsList.append('{0:.{precision}f}'.format(point,precision=dexp))
+						#noise = 1/10**dexp
+						#floatVal = point - noise
+						#pointsList.append(floatVal)
+						
+						#if i==1:# change one axes per point
+						pointsList.append(float('{0:.{precision}f}'.format(point,precision=dexp-2)))
+						#else:
+						#	pointsList.append(float(point))
+						#	pointsList.append(float('{0:.{precision}f}'.format(point,precision=dexp)))
 						i=i+1
 					cluster_points.append(pointsList)
-					self.np_points_ = np.array(cluster_points,dtype=np.float64)
+					self.np_points_ = np.array(cluster_points)#,dtype=np.float64)
 					#cluster_points.append([float(point) for point in dpoints[0:3]])
 					# end jun2nd change
 					
