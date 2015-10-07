@@ -1246,16 +1246,28 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 					cluster_points.append([float(point) for point in dpoints[0:3]])
 						
 					self.objects_names.append(dname)
-					self.np_points_ = np.array(cluster_points)
+					self.np_points_ = np.array(cluster_points) #see if we can do the assignment once, instead of overwrting many times!
 					if data_size == 0:
 						end=time.time()
 						print("read glycogen granules in:", end-start)
 						ellip_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
+						# special case for 3X3 matrices ellipsoids:
+						if len(cluster_points) == 3:
+							print('self.np_points_ before',self.np_points_)
+							self.fix_precision(cluster_points)
+							print('self.np_points_ after',self.np_points_)
+						# --	
 						self.draw_ellipsoid(dlabel,ellip_color)
 				else:
 					end = time.time()
 					print("read glycogen granules in:", end-start)
 					ellip_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
+					# special case for 3X3 matrices ellipsoids:
+					if len(cluster_points) == 3:
+						print('self.np_points_ before',self.np_points_)	
+						self.fix_precision(cluster_points)
+						print('self.np_points_ after',self.np_points_)
+					# --
 					self.draw_ellipsoid(prev_label,ellip_color)
 					
 					start = time.time()
@@ -1301,7 +1313,45 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 		return{"FINISHED"}
 
 	## Get Glycogen Layer ##
-	@classmethod
+	#@classmethod
+	def fix_precision(self,listOfPoints):
+		# Examine for singularities#
+		#1- fix, floating point to 7 digits precison number, ..
+		# its ok if no# of precisions is less than 7 already. it will take it as is if thats the case.
+		cluster_points2=[]
+		print('fix_precision listofPoints',listOfPoints)
+		
+		for row in listOfPoints:
+			cluster_points2.append([
+				float("{0:.7}".format(row[0])),float("{0:.7}".format(row[1])),float("{0:.7}".format(row[2]))
+				])
+		print('fix_precision cluster_points2',cluster_points2)
+		# 2- convert list to numpy array
+		arr = np.array(cluster_points2)
+		# 3- get matrix transpose
+		arrT=arr.T
+		# 4- examine singularities by avoiding small variance values between elelments of matrix
+		for row in arrT:
+			sub1=row[0]-float((str(row[0])[0:3]))
+			sub2=row[1]-float((str(row[1])[0:3]))
+			sub3=row[2]-float((str(row[2])[0:3]))
+			
+			diff=abs(sub1-sub2)
+			if diff<=0.02:
+				row[0]+=0.00009
+				row[0]=round(row[0],2)
+				print('diff1-',row[0])
+			
+			diff=abs(sub2-sub3)
+			if diff<=0.02:
+				row[2]+=0.00005
+				row[2]=round(row[2],2)
+				print('diff2-',row[2])
+
+		self.np_points_ =arrT.T
+		print('arrTT with noise added to remove duplicates', self.np_points_)
+
+		#end
 	def get_glyco_layer(self, obj_name):
 		self.layer_index = 0
 		self.layers_array = []
@@ -1361,11 +1411,19 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 			u = new_u
 		#End of while                
 		center = np.dot(P.T, u)
+		npTemp1=np.array([[a * b for b in center] for a in center])
+		diagDotP = np.dot(np.diag(u), P)
+		transposeDotdiagP = np.dot(P.T, diagDotP)
+		npTemp2= transposeDotdiagP - npTemp1
+		test = linalg.det(npTemp2)#<--- det = 0.0
+		print('test',test)
 		# the A matrix for the ellipse
-		A = linalg.inv(
-					   np.dot(P.T, np.dot(np.diag(u), P)) - 
-					   np.array([[a * b for b in center] for a in center])
-					   ) / d                               
+		A = linalg.inv(npTemp2)/d #<--- error singmatrix
+		print('A',A)
+		#A = linalg.inv(
+		#			   np.dot(P.T, np.dot(np.diag(u), P)) - 
+		#			   np.array([[a * b for b in center] for a in center])
+		#			   ) / d                               
 		U, s, rotation = linalg.svd(A)
 		radii = 1.0/np.sqrt(s)
 		u = np.linspace(0.0, 2.0 * np.pi, 100)
@@ -1426,9 +1484,13 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 			#make ellipsoid a parent
 			self.makeParentOf()
 
-			#to hide 'icosphere'
+			#to hide 'icosphere' or to delete
 			bpy.ops.object.select_all(action='DESELECT')
-			bpy.data.objects['fake'+label].hide = True
+			#bpy.data.objects['fake'+label].hide = True
+			# we will delete fake objects instead of hiding
+			bpy.data.objects['fake'+label].select = True
+			bpy.ops.object.delete()
+
 	###---- PARENT-CHILD FUNCTION -----
 	def makeParentOf(self):
 		children_list = self.objects_names
