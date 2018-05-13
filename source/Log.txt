@@ -1,0 +1,27 @@
+May 13th, 2018,
+added the option include ellipsoids in the calculations or not.
+changes took place, in:
+1- UI_VIEW_PT
+added:
+row4_step2.prop(scene,'prop_bool_ellipsoids')
+
+2- the variable needs to be defined/initialized in:
+register() and unregister()
+
+
+3- in func_load_objectsNames(self)
+bpy.types.Scene.prop_bool_ellipsoid = bpy.props.BoolProperty(name="Draw Ellipsoids")
+
+4- put the if condition in invoke for class OBJECTS_OT_generate_clusters(bpy.types.Operator):
+if bpy.context.scene.prop_bool_ellipsoid == True:	
+							self.draw_ellipsoid(dlabel,ellip_color)
+                            
+
+5- we used that flag (bpy.context.scene.prop_bool_ellipsoid) for the fix_precision function, no need to make any
+amendments, if the ellipsoids are not drawn:
+code snippet:
+	# special case for 3X3 matrices ellipsoids:
+					if len(cluster_points) == 3 and bpy.context.scene.prop_bool_ellipsoid==True:
+						print('self.np_points_ before',self.np_points_)	
+						self.fix_precision(cluster_points)
+						print('self.np_points_ after',self.np_points_)
