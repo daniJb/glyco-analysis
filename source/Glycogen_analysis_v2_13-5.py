@@ -31,13 +31,17 @@ print("system detected as " + sys_ty)
 if sys_ty=="win32":
 	# if OS is Windows:
 	user_home = os.path.expanduser("~")
-	path1= user_home + "\Anaconda3\Lib\site-packages"#"\Anaconda3\envs\env_py342\Lib\site-packages"
-	path2= user_home + "\Anaconda3\Lib"#"\Anaconda3\envs\env_py342\Lib"
+	path1= user_home + "\Anaconda3\envs\py353_blen279c\Lib\site-packages"#"\Anaconda3\envs\env_py342\Lib\site-packages"
+	path2= user_home + "\Anaconda3\envs\py353_blen279c\Lib" #"\Anaconda3\envs\env_py342\Lib"
+	listpaths = [path1,path2]
+	sys.path= listpaths+sys.path
+	"""
 	sys_paths = sys.path
 	if path1 not in sys_paths:
 		sys.path.append(path1)
 	if path2 not in sys_paths:
 		sys.path.append(path2)
+	"""
 	os.environ["OMP_NUM_THREADS"] = "18"
 	print(sys.path)
 	print(os.environ["OMP_NUM_THREADS"])

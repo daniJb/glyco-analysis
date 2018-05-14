@@ -25,3 +25,17 @@ code snippet:
 						print('self.np_points_ before',self.np_points_)	
 						self.fix_precision(cluster_points)
 						print('self.np_points_ after',self.np_points_)
+
+
+14th May 2018:
+all blender versions should execute from the terminal window without the need to set any environment variables manually
+from console. blender 2.79b has been tested successfuly on Windows 10. running Anaconda3, with an added environment using 
+the command:
+conda create -n env_py353_blen279b python=3.5.3
+
+the script was then modified to re-assign sys.path in such, our local python libraries are checked first. This is for the sake
+of getting older versions of modules such as numpy that come with Blender'd bundle. in our case, blender 2.79b had numpy
+version ‘1.10.1', while a fresh install of python3.5.3 would have numpy 1.14.3. hence, we needed to put our local PATHS
+put first, so that code execution goes with our version of numpy, which is 1.14.3. This change have managed to eleminate 
+the recent error with calculating ellipsoids and drawing them. 
+This change is yet to be tested on Mac and Linux.
