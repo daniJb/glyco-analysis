@@ -12,8 +12,7 @@ To date, the addon has been maintaned and tested to work with blender 2.79b. For
 - matplotlib
 
 The dataset should follow certain conventions such as names and objects-category-layers, this is mostly relates to Blender.
-More details can be found in the [wiki][]
-[wiki]:https://github.com/daniJb/glyco-analysis/wiki
+More details can be found in the [wiki](https://github.com/daniJb/glyco-analysis/wiki)
 
 
 Glycogen analysis has been tested on Linux centOS7, MacOSX Sierra and Windows10.
