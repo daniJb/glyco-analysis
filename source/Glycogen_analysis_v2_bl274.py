@@ -23,61 +23,41 @@ bl_info={
 		"wiki_url":"https://github.com/daniJb/glyco-analysis/wiki",
 		"category":"objects"
 }
-# Jun11, 2017: These paths has been hardcoded to use the server's python modules. Update the paths accordinly when executing from local machines
+# These paths have been hardcoded. Update them as needed when executing from systems with custom python env
 import sys, os
-sys_ty=sys.platform
-print("system detected as " + sys_ty)
+print("system detected as " + sys.platform)
 
-if sys_ty=="win32":
+if  sys.platform == "win32":
 	# if OS is Windows:
 	user_home = os.path.expanduser("~")
-	path1= user_home + "\Anaconda3\envs\py353_blen279c\Lib\site-packages"#"\Anaconda3\envs\env_py342\Lib\site-packages"
-	path2= user_home + "\Anaconda3\envs\py353_blen279c\Lib" #"\Anaconda3\envs\env_py342\Lib"
-	listpaths = [path1,path2]
-	sys.path= listpaths+sys.path
-	"""
-	sys_paths = sys.path
-	if path1 not in sys_paths:
-		sys.path.append(path1)
-	if path2 not in sys_paths:
-		sys.path.append(path2)
-	"""
-	os.environ["OMP_NUM_THREADS"] = "18"
-	print(sys.path)
-	print(os.environ["OMP_NUM_THREADS"])
-	
-elif sys_ty=="linux2":
-	#user_home = os.environ["HOME"]
-	# vislab systems' only!, comment out for other systems
-	#Server
-	path1 = '/var/remote/projects/epfl/software/blenderEnv/lib/python3.4/site-packages'
-	path2 = '/var/remote/projects/epfl/software/blenderEnv/lib/python3.4'
-	sys_paths = sys.path
-	if path1 not in sys_paths:
-		sys.path.append(path1)
-	if path2 not in sys_paths:
-		sys.path.append(path2)
-	
-	os.environ["OMP_NUM_THREADS"] = "18"
-	print(sys.path)
-	print(os.environ["OMP_NUM_THREADS"])
+	path1 = user_home + "\Anaconda3\envs\env_py342\Lib\site-packages"
+	path2 = user_home + "\Anaconda3\envs\env_py342\Lib"
 
-if sys_ty=="darwin":
+elif  sys.platform == "linux":
+	#user_home = os.environ["HOME"]
+	# vislab systems' only!, comment out for others
+	#Server
+	path1 = "/var/remote/projects/epfl/bbp/glycogen_analysis/software/anaconda3/lib/python3.4/site-packages"
+	path2 = "/var/remote/projects/epfl/bbp/glycogen_analysis/software/anaconda3/lib/python3.4"
+
+if  sys.platform == "darwin":
 	#MacOS
 	user_home = os.environ["HOME"]
-	path1= user_home + '/anaconda/lib/python3.4/site-packages'
-	path2= user_home + '/anaconda/lib/python3.4'
-	
-	sys_paths = sys.path
-	if path1 not in sys_paths:
-		sys.path.append(path1)
-	if path2 not in sys_paths:
-		sys.path.append(path2)
-	#path2 = user_home + '/repos/bitbucket_repos/astroproximity/source'
-	
-#local-linux
-#path1= user_home + '/anaconda/lib/python3.4/site-packages'
-#path2 = user_home + '/repos/bitbucket_repos/astroproximity/source'
+	path1 = user_home + '/anaconda/lib/python3.4/site-packages'
+	path2 = user_home + '/anaconda/lib/python3.4'	
+
+if path1 not in sys.path:
+	listpaths = [path1]
+	sys.path = listpaths + sys.path
+	#sys.path.append(path1)
+if path2 not in sys.path:
+	listpaths = [path2]
+	sys.path = listpaths + sys.path
+	#sys.path.append(path2)
+
+os.environ["OMP_NUM_THREADS"] = "8"#will vary
+print(sys.path)
+print(os.environ["OMP_NUM_THREADS"])
 
 import bpy
 from bpy.props import*
@@ -103,6 +83,7 @@ from os.path import expanduser
 import math
 import mathutils
 
+print("numpy version is " + np.version.version)
 #---------------------------------------------------------------------------------
 # 	  					# INFO TEXTS #
 #---------------------------------------------------------------------------------

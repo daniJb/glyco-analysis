@@ -17,33 +17,45 @@ bl_info={
 		"name":"Glycogen Analysis",
 		"author":"Heikki Lehvaeslaiho, Corrado Cali, Jumana Baghabra, Daniya Boges",
 		"version": (2,0,0),
-		"blender": (2,76,0),
+		"blender": (2,79,0),
 		"location":"VIEW3D UI > Glycogen Analysis",
 		"description":"Glycogen Analysis (clustering + Measurements + calculate Dbscan Optimum values)",
 		"wiki_url":"https://github.com/daniJb/glyco-analysis/wiki",
 		"category":"objects"
 }
-# Jun11, 2017: These paths has been hardcoded to use the server's python modules. Update the paths accordinly when executing from local machines
+# These paths have been hardcoded. Update the paths accordinly when executing on systems with custom python env
 import sys, os
-user_home = os.environ["HOME"]
+print("system detected as " + sys.platform)
 
-#MAC.OS
-#path1= user_home + '/anaconda/lib/python3.4/site-packages'
-#path2 = user_home + '/repos/bitbucket_repos/astroproximity/source'
-#linux
-#path1= user_home + '/anaconda/lib/python3.4/site-packages'
-#path2 = user_home + '/repos/bitbucket_repos/astroproximity/source'
-#Server
-path1 = '/var/remote/projects/epfl/software/blenderEnv/lib/python3.4/site-packages'
-path2 = '/var/remote/projects/epfl/software/blenderEnv/lib/python3.4'
-sys_paths = sys.path
-if path1 not in sys_paths:
-	sys.path.append(path1)
-if path2 not in sys_paths:
-	sys.path.append(path2)
+if  sys.platform == "win32":
+	# if OS is Windows:
+	user_home = os.path.expanduser("~")
+	path1 = user_home + "\Anaconda3\envs\py353_blen279c\Lib\site-packages"
+	path2 = user_home + "\Anaconda3\envs\py353_blen279c\Lib"
 
+elif  sys.platform == "linux":
+	#user_home = os.environ["HOME"]
+	# vislab systems' only!, comment out for others
+	#Server
+	path1 = "/var/remote/projects/epfl/bbp/glycogen_analysis/software/anaconda3/envs/env_py353_bl279b/lib/python3.5/site-packages"
+	path2 = "/var/remote/projects/epfl/bbp/glycogen_analysis/software/anaconda3/envs/env_py353_bl279b/lib/python3.5"
 
-os.environ["OMP_NUM_THREADS"] = "18"
+if  sys.platform == "darwin":
+	#MacOS
+	user_home = os.environ["HOME"]
+	path1 = user_home + '/anaconda/lib/python3.4/site-packages'
+	path2 = user_home + '/anaconda/lib/python3.4'	
+
+if path1 not in sys.path:
+	listpaths = [path1]
+	sys.path = listpaths + sys.path
+	#sys.path.append(path1)
+if path2 not in sys.path:
+	listpaths = [path2]
+	sys.path = listpaths + sys.path
+	#sys.path.append(path2)
+
+os.environ["OMP_NUM_THREADS"] = "8"#will vary
 print(sys.path)
 print(os.environ["OMP_NUM_THREADS"])
 
@@ -71,6 +83,7 @@ from os.path import expanduser
 import math
 import mathutils
 
+print("numpy version is " + np.version.version)
 #---------------------------------------------------------------------------------
 # 	  					# INFO TEXTS #
 #---------------------------------------------------------------------------------
@@ -128,6 +141,8 @@ class VIEW3D_OT_activate_addon_button(bpy.types.Operator):
 			update=update_prop_bool_glyc)
 			bpy.types.Scene.prop_bool_clusters = bpy.props.BoolProperty(name="Clusters", description=" ",
 			update=update_prop_bool_clust)
+			bpy.types.Scene.prop_bool_ellipsoid = bpy.props.BoolProperty(name="Draw Ellipsoids")
+
 			bpy.types.Scene.prop_min_samples = bpy.props.IntProperty(name='Minimum Samples')
 			bpy.types.Scene.prop_eps1 = bpy.props.FloatProperty(name='from')
 			bpy.types.Scene.prop_eps2 = bpy.props.FloatProperty(name='to')
@@ -1277,24 +1292,27 @@ class OBJECTS_OT_generate_clusters(bpy.types.Operator):
 						end=time.time()
 						print("read glycogen granules in:", end-start)
 						ellip_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
+						
 						# special case for 3X3 matrices ellipsoids:
-						if len(cluster_points) == 3:
+						if len(cluster_points) == 3 and bpy.context.scene.prop_bool_ellipsoid==True:
 							print('self.np_points_ before',self.np_points_)
 							self.fix_precision(cluster_points)
 							print('self.np_points_ after',self.np_points_)
-						# --	
-						self.draw_ellipsoid(dlabel,ellip_color)
+						# --
+						if bpy.context.scene.prop_bool_ellipsoid == True:	
+							self.draw_ellipsoid(dlabel,ellip_color)
 				else:
 					end = time.time()
 					print("read glycogen granules in:", end-start)
 					ellip_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
 					# special case for 3X3 matrices ellipsoids:
-					if len(cluster_points) == 3:
+					if len(cluster_points) == 3 and bpy.context.scene.prop_bool_ellipsoid==True:
 						print('self.np_points_ before',self.np_points_)	
 						self.fix_precision(cluster_points)
 						print('self.np_points_ after',self.np_points_)
 					# --
-					self.draw_ellipsoid(prev_label,ellip_color)
+					if bpy.context.scene.prop_bool_ellipsoid == True:
+						self.draw_ellipsoid(prev_label,ellip_color)
 					
 					start = time.time()
 					this_color = self.makeMaterial('color', (random.random(),random.random(),random.random()),(1,1,1), 1)
@@ -1834,6 +1852,7 @@ class UI_VIEW3D_PT(bpy.types.Panel):
 				row4_step2 = layout.row()
 				row4_step2.alignment = 'LEFT'
 				row4_step2.operator("objects.generate_clusters", "Generate")
+				row4_step2.prop(scene,'prop_bool_ellipsoid')
 
 				row5_step2 = layout.row(align=True)
 				row5_step2.label("---- Results --- :")
@@ -1928,6 +1947,7 @@ def register():
 	bpy.types.Scene.data_obj_coords = None
 	bpy.types.Scene.prop_bool_glycogen = None #toggle checkbox
 	bpy.types.Scene.prop_bool_clusters = None #toggle checkbox
+	bpy.types.Scene.prop_bool_ellipsoid = None
 	#dbscan info class
 	bpy.types.Scene.prop_dbscan_info = False #flag
 	#clustering option:
@@ -1982,6 +2002,8 @@ def unregister():
 		del bpy.types.Scene.prop_bool_glycogen
 	if bpy.types.Scene.prop_bool_clusters:
 		del bpy.types.Scene.prop_bool_clusters
+	if bpy.types.Scene.prop_bool_ellipsoid:
+		del bpy.types.Scene.prop_bool_ellipsoid
 	#dbscan info class
 	if bpy.types.Scene.prop_dbscan_info: #flag
 		del bpy.types.Scene.prop_dbscan_info
