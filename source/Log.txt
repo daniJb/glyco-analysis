@@ -1,5 +1,5 @@
 May 13th, 2018,
-added the option include ellipsoids in the calculations or not.
+Added a GUI enabled option to include or not include ellipsoids in the calculations.
 changes took place, in:
 1- UI_VIEW_PT
 added:
@@ -18,7 +18,7 @@ if bpy.context.scene.prop_bool_ellipsoid == True:
                             
 
 5- we used that flag (bpy.context.scene.prop_bool_ellipsoid) for the fix_precision function, no need to make any
-amendments, if the ellipsoids are not drawn:
+amendments, since the ellipsoids will not be drawn:
 code snippet:
 	# special case for 3X3 matrices ellipsoids:
 					if len(cluster_points) == 3 and bpy.context.scene.prop_bool_ellipsoid==True:
@@ -28,14 +28,14 @@ code snippet:
 
 
 14th May 2018:
-all blender versions should execute from the terminal window without the need to set any environment variables manually
-from console. blender 2.79b has been tested successfuly on Windows 10. running Anaconda3, with an added environment using 
-the command:
+all blender versions should launch without the need to set any environment variables manually from console. 
+blender 2.79b has been tested successfuly on Windows 10. running Anaconda3, with one custom conda environment using the command:
 conda create -n env_py353_blen279b python=3.5.3
 
-the script was then modified to re-assign sys.path in such, our local python libraries are checked first. This is for the sake
-of getting older versions of modules such as numpy that come with Blender'd bundle. in our case, blender 2.79b had numpy
-version ‘1.10.1', while a fresh install of python3.5.3 would have numpy 1.14.3. hence, we needed to put our local PATHS
-put first, so that code execution goes with our version of numpy, which is 1.14.3. This change have managed to eleminate 
-the recent error with calculating ellipsoids and drawing them. 
-This change is yet to be tested on Mac and Linux.
+the script was then modified to re-assign sys.path in such way that our newly created conda python libraries are checked first. This is to prevent blender from
+accessing its own version of similar modules such as numpy that was included with Blender's python bundle since version 2.7x. 
+In our case, blender 2.79b had numpy version ‘1.10.1', while a fresh install of python3.5.3 would have numpy 1.14.3. hence, we needed to put our local libraries
+in the assignement order first, so that code execution goes with our version of numpy, which is 1.14.3. This change have managed to eleminate 
+the recent error with calculating ellipsoids and drawing them.
+
+The script has been tested successfuly on Mac and Linux.
